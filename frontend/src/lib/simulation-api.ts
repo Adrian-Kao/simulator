@@ -1,3 +1,5 @@
+import type { GoalConfig, GoalMetric } from "@/features/simulation/simulation.types";
+
 export type SimulationStatus =
   | "idle"
   | "running"
@@ -14,9 +16,9 @@ export type SimulationPolicyPayload =
   | {
       type: "red-line";
       road_id: string;
-      side: "left" | "right";
-      start_offset: number;
-      end_offset: number;
+      side?: "left" | "right";
+      start_offset?: number;
+      end_offset?: number;
       length_meters: number;
       start_time?: string;
       end_time?: string;
@@ -24,13 +26,15 @@ export type SimulationPolicyPayload =
   | {
       type: "parking";
       parking_id: string;
-      name: string;
+      name?: string;
       spaces: number;
     }
   | {
       type: "signal-timing";
       intersection_id: string;
-      phases: SignalPhasePayload[];
+      baseline_seconds: number;
+      scenario_seconds: number;
+      phases?: SignalPhasePayload[];
     }
   | {
       type: "traffic-restriction";
@@ -50,6 +54,7 @@ export type SimulationRequestPayload = {
   road_id?: string;
   road_name?: string;
   policies: SimulationPolicyPayload[];
+  goals?: GoalConfig;
 };
 
 export type SimulationKpiPayload = {
@@ -59,48 +64,74 @@ export type SimulationKpiPayload = {
   queue_vehicles: number;
 };
 
+export type SimulationDeltaPayload = {
+  travel_time_percent: number;
+  travel_speed_percent: number;
+  congestion_vc_percent: number;
+  queue_percent: number;
+};
+
+export type PolicyVariablesPayload = {
+  signal_green_seconds: number;
+  red_line_meters: number;
+  parking_spaces: number;
+};
+
+export type GoalStatusPayload = {
+  metric: GoalMetric;
+  label: string;
+  direction: "decrease" | "increase";
+  target_percent: number;
+  current_percent: number;
+  gap_percent: number;
+  met: boolean;
+};
+
 export type SimulationApiResult = {
   scenario_id: string;
   baseline: SimulationKpiPayload;
   scenario: SimulationKpiPayload;
-  delta: {
-    travel_time_percent: number;
-    travel_speed_percent: number;
-    congestion_vc_percent: number;
-    queue_percent: number;
-  };
-  recommended:
-    | "baseline"
-    | "scenario"
-    | "tie"
-    | string;
+  delta: SimulationDeltaPayload;
+  recommended: "baseline" | "scenario" | "tie" | string;
+  baseline_variables: PolicyVariablesPayload;
+  scenario_variables: PolicyVariablesPayload;
+  goal_status: GoalStatusPayload[];
+  goals_met: boolean;
   warnings: string[];
+  metadata: Record<string, unknown>;
 };
 
-const API_BASE_URL =
+export const API_BASE_URL =
   process.env.NEXT_PUBLIC_SIMULATION_API_URL ??
   "http://localhost:8000";
 
-export async function runSimulation(
-  request: SimulationRequestPayload,
-): Promise<SimulationApiResult> {
-  const response = await fetch(
-    `${API_BASE_URL}/api/simulations`,
-    {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(request),
+export async function postJson<T>(
+  path: string,
+  body: unknown,
+): Promise<T> {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
     },
-  );
+    body: JSON.stringify(body),
+  });
 
   if (!response.ok) {
     const text = await response.text();
     throw new Error(
-      `Simulation API ${response.status}: ${text}`,
+      `${path} ${response.status}: ${text}`,
     );
   }
 
-  return response.json() as Promise<SimulationApiResult>;
+  return response.json() as Promise<T>;
+}
+
+export async function runSimulation(
+  request: SimulationRequestPayload,
+): Promise<SimulationApiResult> {
+  return postJson<SimulationApiResult>(
+    "/api/simulations",
+    request,
+  );
 }

@@ -1,211 +1,88 @@
 import type {
-  ParkingPolicyData,
-  RedLinePolicyData,
-  RoadSegmentData,
+  ScenarioDiffEntry,
+  ScenarioDiffType,
 } from "@/features/simulation/simulation.types";
 
 import styles from "@/styles/simulation.module.css";
 
 type Props = {
-  parkingPolicies: ParkingPolicyData[];
-  redLinePolicies: RedLinePolicyData[];
-  roads: RoadSegmentData[];
+  scenarioName: string;
+  entries: ScenarioDiffEntry[];
 };
 
+/*
+ * 這個清單只顯示 ScenarioDiff。
+ *
+ * Baseline（道路 / 號誌 / 停車場 / YouBike / 既有紅線）不是政策，
+ * 所以初始狀態一定是 0 筆。
+ */
+
+function typeIcon(type: ScenarioDiffType) {
+  switch (type) {
+    case "signal-timing":
+      return "🚦";
+    case "red-line":
+      return "Ⓡ";
+    case "parking":
+      return "Ⓟ";
+    default:
+      return "•";
+  }
+}
+
+function typeLabel(type: ScenarioDiffType) {
+  switch (type) {
+    case "signal-timing":
+      return "號誌";
+    case "red-line":
+      return "紅線";
+    case "parking":
+      return "停車";
+    default:
+      return type;
+  }
+}
+
 export default function PolicyList({
-  parkingPolicies,
-  redLinePolicies,
-  roads,
+  scenarioName,
+  entries,
 }: Props) {
-  const basePolicyCount = 3;
-
-  const totalPolicyCount =
-    basePolicyCount +
-    parkingPolicies.length +
-    redLinePolicies.length;
-
   return (
     <div className={styles.policyList}>
       <div className={styles.policyListHeader}>
-        <strong>
-          政策清單（Scenario A）
-        </strong>
-
-        <span>
-          {totalPolicyCount} 筆政策
-        </span>
+        <strong>政策清單（{scenarioName}）</strong>
+        <span>{entries.length} 筆政策</span>
       </div>
 
-      <div className={styles.policyCards}>
-        {redLinePolicies.length === 0 ? (
-          <div
-            className={`${styles.policyCard} ${styles.selectedPolicyCard}`}
-          >
-            <div className={styles.policyCardTitle}>
-              <span>Ⓡ</span>
-              <strong>紅線政策</strong>
-              <em>尚未建立</em>
-            </div>
-
-            <p>
-              選取道路後可建立實際 curb 紅線區段
-            </p>
-
-            <b className={styles.redText}>
-              Road Curb Policy
-            </b>
-          </div>
-        ) : (
-          redLinePolicies.map((policy) => {
-            const road =
-              roads.find(
-                (item) =>
-                  item.id === policy.roadId,
-              ) ?? null;
-
-            return (
-              <div
-                key={policy.id}
-                className={styles.policyCard}
-              >
-                <div
-                  className={
-                    styles.policyCardTitle
-                  }
-                >
-                  <span>Ⓡ</span>
-                  <strong>紅線政策</strong>
-                  <em>已套用</em>
-                </div>
-
-                <p>
-                  {road?.roadName ??
-                    policy.roadId}
-                  {" · "}
-                  {policy.side === "left"
-                    ? "左側 curb"
-                    : "右側 curb"}
-                </p>
-
-                <b
-                  className={
-                    styles.redText
-                  }
-                >
-                  {policy.lengthMeters} m
-                  {policy.startTime &&
-                  policy.endTime
-                    ? ` · ${policy.startTime}-${policy.endTime}`
-                    : ""}
-                </b>
-              </div>
-            );
-          })
-        )}
-
-        <div className={styles.policyCard}>
-          <div className={styles.policyCardTitle}>
-            <span>◎</span>
-
-            <strong>
-              新增 YouBike 站點
-            </strong>
-
-            <em>新增</em>
-          </div>
-
-          <p>
-            信義商圈
-          </p>
-
-          <b>
-            Scenario Policy
-          </b>
+      {entries.length === 0 ? (
+        <div className={styles.policyEmptyState}>
+          <strong>目前尚未設定政策</strong>
+          <p>請從地圖或工具列新增政策</p>
         </div>
-
-        <div className={styles.policyCard}>
-          <div className={styles.policyCardTitle}>
-            <span>Ⓟ</span>
-
-            <strong>
-              停車政策
-            </strong>
-
-            <em>設定</em>
-          </div>
-
-          <p>
-            信義商圈停車設定
-          </p>
-
-          <b>
-            Scenario Policy
-          </b>
-        </div>
-
-        <div className={styles.policyCard}>
-          <div className={styles.policyCardTitle}>
-            <span>🚦</span>
-
-            <strong>
-              道路號誌
-            </strong>
-
-            <em>設定</em>
-          </div>
-
-          <p>
-            路口號誌與轉向限制
-          </p>
-
-          <b>
-            Signal Control
-          </b>
-        </div>
-
-        {parkingPolicies.map((policy) => (
-          <div
-            key={policy.id}
-            className={styles.policyCard}
-          >
+      ) : (
+        <div className={styles.policyCards}>
+          {entries.map((entry) => (
             <div
-              className={
-                styles.policyCardTitle
-              }
+              key={entry.id}
+              className={styles.policyCard}
             >
-              <span
-                style={{
-                  color: "#12a866",
-                }}
-              >
-                Ⓟ
-              </span>
+              <div className={styles.policyCardTitle}>
+                <span>{typeIcon(entry.type)}</span>
+                <strong>{entry.title}</strong>
+                <em>{typeLabel(entry.type)}</em>
+              </div>
 
-              <strong>
-                新增停車場
-              </strong>
+              <p>{entry.description}</p>
 
-              <em>新增</em>
+              <b>
+                {entry.baselineLabel}
+                {" → "}
+                {entry.scenarioLabel}
+              </b>
             </div>
-
-            <p>
-              {policy.name}
-            </p>
-
-            <b>
-              汽車車位：
-              {policy.spaces} 格
-            </b>
-          </div>
-        ))}
-
-        <button
-          type="button"
-          className={styles.addPolicyCard}
-        >
-          ＋ 新增政策
-        </button>
-      </div>
+          ))}
+        </div>
+      )}
     </div>
   );
 }

@@ -2,3 +2,8 @@
 __pycache__/
 *.py[cod]
 .venv/
+
+# Secrets — never commit real keys
+.env
+.env.local
+.env.*.local

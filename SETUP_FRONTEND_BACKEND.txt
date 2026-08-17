@@ -1,7 +1,5 @@
 XINYI FRONTEND <-> PYTHON FASTAPI MVP
 
-Copy these files into the SAME paths in your repo.
-
 1) Install Python dependencies from repo root
 
 Windows PowerShell:
@@ -14,7 +12,21 @@ macOS/Linux:
   source .venv/bin/activate
   pip install -r requirements.txt
 
-2) Start FastAPI from repo root
+2) Backend environment (optional, only needed for AI optimisation)
+
+Copy the template and fill in a key locally:
+
+  cp .env.example .env
+
+  GEMINI_API_KEY=            <- leave empty to run without AI
+  GEMINI_MODEL=              <- optional, defaults to gemini-2.5-flash
+
+.env is gitignored. Never commit a real key.
+
+With no key: /api/simulations works exactly as normal, and /api/reason plus
+/api/optimize return status "ai_unavailable" instead of failing.
+
+3) Start FastAPI from repo root
 
   python -m uvicorn api.main:app --reload --port 8000
 
@@ -22,9 +34,9 @@ Check:
   http://localhost:8000/health
 
 Expected:
-  {"status":"ok","service":"xinyi-simulation-api"}
+  {"status":"ok","service":"xinyi-simulation-api","ai_configured":false}
 
-3) Frontend env
+4) Frontend env
 
 Create:
   frontend/.env.local
@@ -32,38 +44,74 @@ Create:
 Content:
   NEXT_PUBLIC_SIMULATION_API_URL=http://localhost:8000
 
-4) Start Next.js in another terminal
+5) Start Next.js in another terminal
 
   cd frontend
   npm run dev
 
-5) Open /simulation
+6) Open /simulation
 
-Click:
-  開始模擬
+The Scenario list starts at 0 policies. Baseline data (roads, signals, parking,
+YouBike, existing red lines) is NOT a policy; only a change versus baseline is.
 
-Expected browser Network:
+Make three changes on the map:
+  - 路口設定 / 道路管制 -> pick an intersection -> change the green phase seconds
+  - select a road -> 紅線編輯 -> drag the handles -> 套用
+  - 新增停車場 -> click the map -> set spaces -> 加入 Scenario
+
+The bottom policy list should now show exactly three entries.
+
+Click 開始模擬:
   POST http://localhost:8000/api/simulations
 
-The right panel should show:
-  Travel Time
-  Travel Speed
-  V/C
-  Queue
+The right panel shows, per KPI:
+  Baseline / Scenario / Delta / Target / Gap / Status
 
-IMPORTANT MVP LIMITATION
+Click AI 最佳化:
+  POST http://localhost:8000/api/optimize
 
-Only signal green timing currently affects the simulation result directly.
-Red-line / parking / turn-restriction payloads are accepted by the backend,
-but return warnings because their calibrated capacity/behavior models are not
-connected yet.
+The right panel shows an iteration history with the variable changes, the goal
+status per iteration and Gemini's reasoning, ending in either
+"Goal Reached" or "Max Iterations Reached".
 
-6) Tests
+7) API endpoints
+
+  GET  /health              service + whether a Gemini key is configured
+  POST /api/simulations     ScenarioDiff -> KPIs, delta, goal status
+  POST /api/reason          one Gemini policy patch proposal (no KPIs)
+  POST /api/optimize        the full simulate -> reason -> patch -> simulate loop
+
+MODEL STATUS
+
+All three demo variables now affect the simulation:
+
+  signal_green_seconds -> signal capacity -> queue
+  red_line_meters      -> curb friction   -> effective road capacity
+                                          -> travel time / speed / V/C
+  parking_spaces       -> cruising relief -> effective demand
+                                          -> travel time / speed / V/C / queue
+
+The elasticities live in simulation/policy_effects.py and are NAMED PROXIES,
+not calibrated against Xinyi field data. Response metadata reports
+assumptions.calibrated = false, and warnings list every fallback that was used.
+See DATA_SOURCES.md for the observations still required before calibration can
+be claimed.
+
+Turn restrictions are accepted by the API but do not yet change any KPI; the
+response says so in warnings.
+
+8) Tests
 
 From repo root:
-  pytest tests/test_api.py
+  python -m pytest
 
 Frontend:
   cd frontend
   npm run typecheck
+  npm run lint
   npm run build
+
+Note: tests/test_roads.py and tests/test_parking.py each have one test that
+reads files under data/, which is gitignored. They fail on a fresh checkout
+until you run setup_and_download.py / collect_live_data.py. This is unrelated
+to the API and simulation tests.

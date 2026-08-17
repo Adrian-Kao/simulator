@@ -379,3 +379,65 @@ export type RedLinePolicyData = {
 
   endTime?: string;
 };
+
+/* =========================================================
+   SCENARIO DIFF
+
+   Scenario = 相對 Baseline 的修改。
+   Baseline（道路 / 號誌 / 停車場 / YouBike / 既有紅線）不是 policy，
+   所以只有真的改過的項目才會變成 ScenarioDiffEntry。
+
+   Demo 第一版只允許三個變量：
+     X1 = signal_green_seconds
+     X2 = red_line_meters
+     X3 = parking_spaces
+========================================================= */
+
+export type ScenarioDiffType =
+  | "signal-timing"
+  | "red-line"
+  | "parking";
+
+export type ScenarioDiffEntry = {
+  id: string;
+
+  type: ScenarioDiffType;
+
+  title: string;
+
+  description: string;
+
+  /*
+   * 這筆修改對應的 baseline 物件。
+   */
+  targetId: string;
+
+  intersectionId?: string;
+  roadId?: string;
+  parkingId?: string;
+
+  baselineLabel: string;
+  scenarioLabel: string;
+
+  baselineValue: number;
+  scenarioValue: number;
+
+  unit: string;
+};
+
+/* =========================================================
+   GOALS
+========================================================= */
+
+export type GoalMetric =
+  | "travel_time_percent"
+  | "travel_speed_percent"
+  | "congestion_vc_percent"
+  | "queue_percent";
+
+/*
+ * 目標為「相對 baseline 的百分比變化」，正負號代表方向：
+ *   travel_time_percent: -10 → 旅行時間至少下降 10%
+ *   travel_speed_percent: 8  → 旅行速度至少上升 8%
+ */
+export type GoalConfig = Partial<Record<GoalMetric, number>>;
