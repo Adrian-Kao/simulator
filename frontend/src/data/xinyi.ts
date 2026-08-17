@@ -501,7 +501,7 @@ export const ROADS: RoadSegmentData[] = [
 export const INTERSECTIONS: IntersectionData[] = [
   {
     id: "i-1",
-    name: "??? / ???",
+    name: "市府路 / 松壽路",
     x: 520,
     y: 120,
     connectedRoadIds: ["shifu-road", "songshou-road"],
@@ -514,7 +514,7 @@ export const INTERSECTIONS: IntersectionData[] = [
   },
   {
     id: "i-2",
-    name: "??? / ???",
+    name: "松智路 / 松壽路",
     x: 720,
     y: 120,
     connectedRoadIds: ["songzhi-road", "songshou-road"],
@@ -527,7 +527,7 @@ export const INTERSECTIONS: IntersectionData[] = [
   },
   {
     id: "i-3",
-    name: "??? / ???",
+    name: "松仁路 / 松壽路",
     x: 930,
     y: 120,
     connectedRoadIds: ["songren-road", "songshou-road"],
@@ -540,7 +540,7 @@ export const INTERSECTIONS: IntersectionData[] = [
   },
   {
     id: "i-4",
-    name: "??? / ???",
+    name: "市府路 / 松高路",
     x: 520,
     y: 270,
     connectedRoadIds: ["shifu-road", "songgao-road"],
@@ -553,7 +553,7 @@ export const INTERSECTIONS: IntersectionData[] = [
   },
   {
     id: "i-5",
-    name: "??? / ???",
+    name: "松智路 / 松高路",
     x: 720,
     y: 270,
     connectedRoadIds: ["songzhi-road", "songgao-road"],
@@ -566,7 +566,7 @@ export const INTERSECTIONS: IntersectionData[] = [
   },
   {
     id: "i-6",
-    name: "??? / ???",
+    name: "松仁路 / 松高路",
     x: 930,
     y: 270,
     connectedRoadIds: ["songren-road", "songgao-road"],
@@ -579,7 +579,7 @@ export const INTERSECTIONS: IntersectionData[] = [
   },
   {
     id: "i-7",
-    name: "??? / ??????",
+    name: "市府路 / 忠孝東路五段",
     x: 520,
     y: 560,
     connectedRoadIds: ["shifu-road", "zhongxiao-road"],
@@ -592,7 +592,7 @@ export const INTERSECTIONS: IntersectionData[] = [
   },
   {
     id: "i-8",
-    name: "??? / ??????",
+    name: "松智路 / 忠孝東路五段",
     x: 720,
     y: 560,
     connectedRoadIds: ["songzhi-road", "zhongxiao-road"],
@@ -605,7 +605,7 @@ export const INTERSECTIONS: IntersectionData[] = [
   },
   {
     id: "i-9",
-    name: "??? / ??????",
+    name: "松仁路 / 忠孝東路五段",
     x: 930,
     y: 560,
     connectedRoadIds: ["songren-road", "zhongxiao-road"],
