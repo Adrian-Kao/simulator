@@ -1,3 +1,7 @@
+/* =========================================================
+   BASIC GEOMETRY
+========================================================= */
+
 export type Point = {
   x: number;
   y: number;
@@ -10,9 +14,14 @@ export type CameraBounds = {
   height: number;
 };
 
-export type MapMode = "district" | "district-overview" | "road-focus";
+export type MapMode =
+  | "district"
+  | "road-focus"
+  | "intersection-focus";
 
-export type FocusMode = MapMode | "intersection-focus";
+/* =========================================================
+   POLICY TOOL
+========================================================= */
 
 export type PolicyTool =
   | "select"
@@ -20,27 +29,132 @@ export type PolicyTool =
   | "youbike"
   | "parking"
   | "traffic-control"
-  | "intersection";
+  | "signal";
+
+/* =========================================================
+   TURN RESTRICTION
+========================================================= */
+
+export type TurnRestrictionType =
+  | "forbid-right-turn"
+  | "forbid-left-turn"
+  | "forbid-entry";
+
+export type TurnRestrictionData = {
+  id: string;
+
+  type: TurnRestrictionType;
+
+  /*
+   * 被限制的目標道路
+   */
+  targetRoadId: string;
+
+  note?: string;
+};
+
+/* =========================================================
+   TRAFFIC SIGNAL
+========================================================= */
+
+export type SignalColor =
+  | "green"
+  | "yellow"
+  | "red";
+
+export type SignalPhaseData = {
+  name: string;
+
+  seconds: number;
+
+  color: SignalColor;
+};
+
+/* =========================================================
+   INTERSECTION
+========================================================= */
+
+export type IntersectionData = {
+  id: string;
+
+  name: string;
+
+  /*
+   * SVG World Coordinate
+   */
+  x: number;
+  y: number;
+
+  /*
+   * 這個路口連接哪些道路
+   */
+  connectedRoadIds: string[];
+
+  /*
+   * 紅綠燈相位
+   */
+  phases: SignalPhaseData[];
+
+  /*
+   * 禁止右轉 / 左轉 / 進入
+   */
+  restrictions: TurnRestrictionData[];
+};
+
+/* =========================================================
+   ROAD
+========================================================= */
+
+export type RoadDirection =
+  | "one-way"
+  | "two-way";
+
+export type RoadAlignment =
+  | "vertical"
+  | "horizontal";
+
+export type RoadCurbData = {
+  left: Point[];
+  right: Point[];
+};
 
 export type RoadSegmentData = {
   id: string;
+
   roadName: string;
+
   from: string;
   to: string;
-  /* 長度一律用 polylineLengthMeters(points) 推導，不存快取值。 */
-  direction: "one-way" | "two-way";
-  alignment?: "vertical" | "horizontal" | "polyline";
 
+  /*
+   * 目前新版 xinyi.ts 有些道路沒有直接填 lengthMeters，
+   * 所以先設 optional。
+   */
+  lengthMeters?: number;
+
+  direction: RoadDirection;
+
+  alignment: RoadAlignment;
+
+  /*
+   * 道路中心線
+   */
   points: Point[];
 
-  curb?: {
-    left: Point[];
-    right: Point[];
-  };
+  /*
+   * 左右 curb
+   */
+  curb?: RoadCurbData;
 
+  /*
+   * 此道路經過的 Intersection ID
+   */
   intersectionIds?: string[];
 
-  turnRestrictions?: TurnRestriction[];
+  /*
+   * 道路本身的轉向限制
+   */
+  turnRestrictions?: TurnRestrictionData[];
 
   label?: {
     x: number;
@@ -51,51 +165,41 @@ export type RoadSegmentData = {
   focusBounds: CameraBounds;
 };
 
-export type IntersectionPhase = {
-  name: string;
-  seconds: number;
-  color: "red" | "yellow" | "green";
-};
-
-export type TurnRestrictionType =
-  | "forbid-right-turn"
-  | "forbid-left-turn"
-  | "forbid-entry";
-
-export type TurnRestriction = {
-  id: string;
-  type: TurnRestrictionType;
-  targetRoadId: string;
-  note: string;
-};
-
-export type IntersectionData = {
-  id: string;
-  name: string;
-  x: number;
-  y: number;
-  connectedRoadIds: string[];
-  phases: IntersectionPhase[];
-  restrictions: TurnRestriction[];
-};
+/* =========================================================
+   BUILDING
+========================================================= */
 
 export type BuildingData = {
   id: string;
+
   name: string;
+
   x: number;
   y: number;
+
   width: number;
   height: number;
 };
 
+/* =========================================================
+   PARK
+========================================================= */
+
 export type ParkData = {
   id: string;
+
   name: string;
+
   x: number;
   y: number;
+
   width: number;
   height: number;
 };
+
+/* =========================================================
+   PARKING
+========================================================= */
 
 export type ParkingStatus =
   | "existing"
@@ -103,6 +207,7 @@ export type ParkingStatus =
 
 export type ParkingData = {
   id: string;
+
   name: string;
 
   x: number;
@@ -113,152 +218,100 @@ export type ParkingData = {
   status: ParkingStatus;
 };
 
-export type YouBikeData = {
-  id: string;
-  name?: string;
-  x: number;
-  y: number;
-  docks?: number;
-};
-
-
-
-
 export type ParkingDraft = {
   x: number;
   y: number;
 
   name: string;
+
   spaces: number;
 };
 
+export type ParkingPolicyData = {
+  id: string;
+
+  parkingId: string;
+
+  name: string;
+
+  spaces: number;
+};
+
+/* =========================================================
+   YOUBIKE
+========================================================= */
+
+export type YouBikeData = {
+  id: string;
+
+  x: number;
+  y: number;
+
+  name?: string;
+
+  docks?: number;
+
+  status?: "existing" | "new";
+};
+
+/* =========================================================
+   SCENARIO POLICY
+========================================================= */
+
 export type ScenarioPolicyStatus =
-  | "editing"
   | "active"
+  | "editing"
   | "pending-remove";
 
 export type ScenarioPolicyType =
   | "red-line"
-  | "ubike-add"
-  | "parking-add"
-  | "parking-remove"
+  | "parking"
+  | "youbike"
   | "traffic-control"
-  | "intersection-control";
+  | "signal-timing";
 
 export type ScenarioPolicyData = {
   id: string;
+
   type: ScenarioPolicyType;
-  title: string;
+
   status: ScenarioPolicyStatus;
-  description: string;
+
+  title?: string;
+
   targetId?: string;
+
   roadId?: string;
-  params: Record<string, string | number | boolean>;
-};
 
-export type ScenarioData = {
-  id: string;
-  name: string;
-  policies: ScenarioPolicyData[];
-  undoStack: ScenarioSnapshot[];
-};
+  intersectionId?: string;
 
-export type ScenarioSnapshot = {
-  selectedRoadId: string | null;
-  selectedIntersectionId: string | null;
-  activeTool: PolicyTool;
-  roads: RoadSegmentData[];
-  intersections: IntersectionData[];
-  parkings: ParkingData[];
-  youbikes: YouBikeData[];
-  parkingDraft: ParkingDraft | null;
-  scenarioPolicies: ScenarioPolicyData[];
+  parkingId?: string;
+
+  note?: string;
 };
 
 /* =========================================================
-   COMPATIBILITY TYPES
+   RED LINE
 ========================================================= */
 
-export type Coordinate = [number, number];
+export type CurbSide =
+  | "left"
+  | "right";
 
-export type Building = {
+export type RedLinePolicyData = {
   id: string;
-  name: string;
-  kind: string;
-  footprint: Coordinate[];
-};
 
-export type DistrictBoundary = {
-  id: string;
-  name: string;
-  coordinates: Coordinate[];
-};
-
-export type ParkingLot = {
-  id: string;
-  name: string;
-  capacity: number;
-  coordinate: Coordinate;
-  coordinates?: Coordinate[];
-};
-
-export type Park = {
-  id: string;
-  name: string;
-  kind?: string;
-  footprint?: Coordinate[];
-  boundary?: Coordinate[];
-};
-
-export type RoadSegment = {
-  id: string;
   roadId: string;
-  name: string;
-  start: string;
-  end: string;
-  direction: "one-way" | "two-way";
-  roadWidthMeters: number;
+
+  side: CurbSide;
+
+  startOffset: number;
+
+  endOffset: number;
+
   lengthMeters: number;
-  coordinates: Coordinate[];
-};
 
-export type TrafficLight = {
-  id: string;
-  name: string;
-  coordinate: Coordinate;
-  coordinates?: Coordinate;
-  direction?: string;
-};
+  startTime?: string;
 
-export type YouBikeStation = {
-  id: string;
-  name: string;
-  coordinate: Coordinate;
-  coordinates?: Coordinate;
-  docks: number;
-};
-
-export type PolicyType = PolicyTool;
-
-export type Goal = {
-  id: string;
-  metric: string;
-  direction: "increase" | "decrease";
-  targetPercent: number;
-};
-
-export type SimulationState = {
-  mapMode: MapMode;
-  selectedRoadId: string | null;
-  hoveredRoadId: string | null;
-  activePolicyType: PolicyType;
-  goals: Goal[];
-  policies: Array<{
-    id: string;
-    type: PolicyType;
-    name: string;
-    status: ScenarioPolicyStatus;
-    roadSegmentId?: string;
-    params: Record<string, string | number | boolean>;
-  }>;
+  endTime?: string;
 };

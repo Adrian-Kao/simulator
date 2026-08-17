@@ -1,99 +1,167 @@
-import type { ScenarioPolicyData } from "@/features/simulation/simulation.types";
+import type {
+  ParkingPolicyData,
+} from "@/features/simulation/simulation.types";
+
 import styles from "@/styles/simulation.module.css";
 
 type Props = {
-  scenarioName: string;
-  policies: ScenarioPolicyData[];
-  canUndo: boolean;
-  onUndo: () => void;
-  onEditPolicy: (policy: ScenarioPolicyData) => void;
-  onDeletePolicy: (policyId: string) => void;
+  parkingPolicies: ParkingPolicyData[];
 };
 
-function typeLabel(type: ScenarioPolicyData["type"]) {
-  switch (type) {
-    case "red-line":
-      return "紅線";
-    case "ubike-add":
-      return "UBIKE";
-    case "parking-add":
-      return "停車場";
-    case "parking-remove":
-      return "移除";
-    case "traffic-control":
-      return "管制";
-    case "intersection-control":
-      return "路口";
-    default:
-      return type;
-  }
-}
-
-function statusLabel(status: ScenarioPolicyData["status"]) {
-  switch (status) {
-    case "active":
-      return "啟用中";
-    case "editing":
-      return "編輯中";
-    case "pending-remove":
-      return "待移除";
-    default:
-      return status;
-  }
-}
-
 export default function PolicyList({
-  scenarioName,
-  policies,
-  canUndo,
-  onUndo,
-  onEditPolicy,
-  onDeletePolicy,
+  parkingPolicies,
 }: Props) {
+  const basePolicyCount = 4;
+
+  const totalPolicyCount =
+    basePolicyCount + parkingPolicies.length;
+
   return (
     <div className={styles.policyList}>
       <div className={styles.policyListHeader}>
-        <strong>政策清單（{scenarioName}）</strong>
-        <span>{policies.length} 筆政策</span>
-        <button
-          type="button"
-          className={styles.policyUndoButton}
-          disabled={!canUndo}
-          onClick={onUndo}
-        >
-          Undo
-        </button>
+        <strong>
+          政策清單（Scenario A）
+        </strong>
+
+        <span>
+          {totalPolicyCount} 筆政策
+        </span>
       </div>
 
       <div className={styles.policyCards}>
-        {policies.map((policy) => (
-          <div key={policy.id} className={styles.policyCard}>
-            <div className={styles.policyCardTitle}>
-              <span>{typeLabel(policy.type)}</span>
-              <strong>{policy.title}</strong>
-              <em>{statusLabel(policy.status)}</em>
+        {/* 紅線 */}
+
+        <div
+          className={`${styles.policyCard} ${styles.selectedPolicyCard}`}
+        >
+          <div className={styles.policyCardTitle}>
+            <span>Ⓡ</span>
+
+            <strong>紅線編輯</strong>
+
+            <em>編輯中</em>
+          </div>
+
+          <p>
+            市府路
+          </p>
+
+          <b className={styles.redText}>
+            道路政策
+          </b>
+        </div>
+
+        {/* YouBike */}
+
+        <div className={styles.policyCard}>
+          <div className={styles.policyCardTitle}>
+            <span>◎</span>
+
+            <strong>
+              新增 YouBike 站點
+            </strong>
+
+            <em>新增</em>
+          </div>
+
+          <p>
+            信義商圈
+          </p>
+
+          <b>
+            Scenario Policy
+          </b>
+        </div>
+
+        {/* 停車 */}
+
+        <div className={styles.policyCard}>
+          <div className={styles.policyCardTitle}>
+            <span>Ⓟ</span>
+
+            <strong>
+              停車政策
+            </strong>
+
+            <em>設定</em>
+          </div>
+
+          <p>
+            信義商圈停車設定
+          </p>
+
+          <b>
+            Scenario Policy
+          </b>
+        </div>
+
+        {/* 號誌 */}
+
+        <div className={styles.policyCard}>
+          <div className={styles.policyCardTitle}>
+            <span>🚦</span>
+
+            <strong>
+              道路號誌
+            </strong>
+
+            <em>設定</em>
+          </div>
+
+          <p>
+            路口號誌與轉向限制
+          </p>
+
+          <b>
+            Signal Control
+          </b>
+        </div>
+
+        {/* =================================================
+            使用者新增的停車場
+        ================================================= */}
+
+        {parkingPolicies.map((policy) => (
+          <div
+            key={policy.id}
+            className={styles.policyCard}
+          >
+            <div
+              className={
+                styles.policyCardTitle
+              }
+            >
+              <span
+                style={{
+                  color: "#12a866",
+                }}
+              >
+                Ⓟ
+              </span>
+
+              <strong>
+                新增停車場
+              </strong>
+
+              <em>新增</em>
             </div>
 
-            <p>{policy.description}</p>
+            <p>
+              {policy.name}
+            </p>
+
             <b>
-              {Object.entries(policy.params)
-                .map(([key, value]) => `${key}: ${value}`)
-                .join(" · ")}
+              汽車車位：
+              {policy.spaces} 格
             </b>
-
-            <div className={styles.policyCardActions}>
-              <button type="button" onClick={() => onEditPolicy(policy)}>
-                編輯
-              </button>
-              <button type="button" onClick={() => onDeletePolicy(policy.id)}>
-                刪除
-              </button>
-            </div>
           </div>
         ))}
 
-        <button className={styles.addPolicyCard} type="button">
-          + 新增政策
+        <button
+          type="button"
+          className={styles.addPolicyCard}
+        >
+          ＋ 新增政策
         </button>
       </div>
     </div>
