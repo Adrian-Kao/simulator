@@ -64,3 +64,13 @@
 5. 大眾運輸：捷運與公車站點、路線／班距及分時運量。
 
 現階段下載的開放資料僅作為靜態地理與即時快照的基礎；未具備歷史分時資料前，不得宣稱模型已完成校準或驗證。
+
+不依賴ai 的 agent 測試：
+```
+python3 run_agent.py
+```
+
+simulation 每個 .py 獨立測試：
+```
+python3 -m unittest discover -s tests -v
+```
