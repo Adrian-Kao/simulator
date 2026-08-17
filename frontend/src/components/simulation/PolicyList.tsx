@@ -1,20 +1,28 @@
 import type {
   ParkingPolicyData,
+  RedLinePolicyData,
+  RoadSegmentData,
 } from "@/features/simulation/simulation.types";
 
 import styles from "@/styles/simulation.module.css";
 
 type Props = {
   parkingPolicies: ParkingPolicyData[];
+  redLinePolicies: RedLinePolicyData[];
+  roads: RoadSegmentData[];
 };
 
 export default function PolicyList({
   parkingPolicies,
+  redLinePolicies,
+  roads,
 }: Props) {
-  const basePolicyCount = 4;
+  const basePolicyCount = 3;
 
   const totalPolicyCount =
-    basePolicyCount + parkingPolicies.length;
+    basePolicyCount +
+    parkingPolicies.length +
+    redLinePolicies.length;
 
   return (
     <div className={styles.policyList}>
@@ -29,29 +37,71 @@ export default function PolicyList({
       </div>
 
       <div className={styles.policyCards}>
-        {/* 紅線 */}
+        {redLinePolicies.length === 0 ? (
+          <div
+            className={`${styles.policyCard} ${styles.selectedPolicyCard}`}
+          >
+            <div className={styles.policyCardTitle}>
+              <span>Ⓡ</span>
+              <strong>紅線政策</strong>
+              <em>尚未建立</em>
+            </div>
 
-        <div
-          className={`${styles.policyCard} ${styles.selectedPolicyCard}`}
-        >
-          <div className={styles.policyCardTitle}>
-            <span>Ⓡ</span>
+            <p>
+              選取道路後可建立實際 curb 紅線區段
+            </p>
 
-            <strong>紅線編輯</strong>
-
-            <em>編輯中</em>
+            <b className={styles.redText}>
+              Road Curb Policy
+            </b>
           </div>
+        ) : (
+          redLinePolicies.map((policy) => {
+            const road =
+              roads.find(
+                (item) =>
+                  item.id === policy.roadId,
+              ) ?? null;
 
-          <p>
-            市府路
-          </p>
+            return (
+              <div
+                key={policy.id}
+                className={styles.policyCard}
+              >
+                <div
+                  className={
+                    styles.policyCardTitle
+                  }
+                >
+                  <span>Ⓡ</span>
+                  <strong>紅線政策</strong>
+                  <em>已套用</em>
+                </div>
 
-          <b className={styles.redText}>
-            道路政策
-          </b>
-        </div>
+                <p>
+                  {road?.roadName ??
+                    policy.roadId}
+                  {" · "}
+                  {policy.side === "left"
+                    ? "左側 curb"
+                    : "右側 curb"}
+                </p>
 
-        {/* YouBike */}
+                <b
+                  className={
+                    styles.redText
+                  }
+                >
+                  {policy.lengthMeters} m
+                  {policy.startTime &&
+                  policy.endTime
+                    ? ` · ${policy.startTime}-${policy.endTime}`
+                    : ""}
+                </b>
+              </div>
+            );
+          })
+        )}
 
         <div className={styles.policyCard}>
           <div className={styles.policyCardTitle}>
@@ -73,8 +123,6 @@ export default function PolicyList({
           </b>
         </div>
 
-        {/* 停車 */}
-
         <div className={styles.policyCard}>
           <div className={styles.policyCardTitle}>
             <span>Ⓟ</span>
@@ -95,8 +143,6 @@ export default function PolicyList({
           </b>
         </div>
 
-        {/* 號誌 */}
-
         <div className={styles.policyCard}>
           <div className={styles.policyCardTitle}>
             <span>🚦</span>
@@ -116,10 +162,6 @@ export default function PolicyList({
             Signal Control
           </b>
         </div>
-
-        {/* =================================================
-            使用者新增的停車場
-        ================================================= */}
 
         {parkingPolicies.map((policy) => (
           <div

@@ -9,12 +9,17 @@ import {
   YOUBIKES,
 } from "@/data/xinyi";
 
+import {
+  redLineLengthMeters,
+} from "@/features/simulation/curb.utils";
+
 import type {
+  CurbSide,
   ParkingData,
   ParkingDraft,
   ParkingPolicyData,
-  Point,
   PolicyTool,
+  RedLinePolicyData,
   RoadSegmentData,
   TurnRestrictionType,
 } from "@/features/simulation/simulation.types";
@@ -36,37 +41,39 @@ export default function SimulationShell() {
   const [selectedRoadId, setSelectedRoadId] =
     useState<string | null>(null);
 
-  const [activeTool, setActiveTool] =
-    useState<PolicyTool>("select");
-
   const [
     selectedIntersectionId,
     setSelectedIntersectionId,
   ] = useState<string | null>(null);
 
   const [intersections, setIntersections] =
-    useState(INTERSECTIONS);
+    useState(() => structuredClone(INTERSECTIONS));
 
-  /*
-   * 地圖上的停車場
-   * 初始值來自 xinyi.ts
-   */
+  const [activeTool, setActiveTool] =
+    useState<PolicyTool>("select");
+
   const [parkings, setParkings] =
-    useState<ParkingData[]>(PARKINGS);
+    useState<ParkingData[]>(
+      () => structuredClone(PARKINGS),
+    );
 
-  /*
-   * 使用者目前尚未確認的停車場
-   */
   const [parkingDraft, setParkingDraft] =
     useState<ParkingDraft | null>(null);
 
-  /*
-   * 新增停車場形成的 Scenario Policy
-   */
   const [
     parkingPolicies,
     setParkingPolicies,
   ] = useState<ParkingPolicyData[]>([]);
+
+  const [
+    redLineDraft,
+    setRedLineDraft,
+  ] = useState<RedLinePolicyData | null>(null);
+
+  const [
+    redLinePolicies,
+    setRedLinePolicies,
+  ] = useState<RedLinePolicyData[]>([]);
 
   const selectedRoad = useMemo(() => {
     return (
@@ -76,33 +83,179 @@ export default function SimulationShell() {
     );
   }, [roads, selectedRoadId]);
 
-  const selectedIntersection =
-    useMemo(() => {
-      return (
-        intersections.find(
-          (intersection) =>
-            intersection.id ===
-            selectedIntersectionId,
-        ) ?? null
-      );
-    }, [
-      intersections,
-      selectedIntersectionId,
-    ]);
+  const selectedIntersection = useMemo(() => {
+    return (
+      intersections.find(
+        (intersection) =>
+          intersection.id ===
+          selectedIntersectionId,
+      ) ?? null
+    );
+  }, [
+    intersections,
+    selectedIntersectionId,
+  ]);
 
-  const handleSelectIntersection = (
-    intersectionId: string,
+  const createRedLineDraft = (
+    roadId: string,
+    side: CurbSide = "left",
+  ): RedLinePolicyData | null => {
+    const road = roads.find(
+      (item) => item.id === roadId,
+    );
+
+    if (!road) {
+      return null;
+    }
+
+    const startOffset = 0.25;
+    const endOffset = 0.75;
+
+    return {
+      id: `draft-red-line-${roadId}`,
+      roadId,
+      side,
+      startOffset,
+      endOffset,
+      lengthMeters:
+        redLineLengthMeters(
+          road,
+          startOffset,
+          endOffset,
+        ),
+      startTime: "00:00",
+      endTime: "23:59",
+    };
+  };
+
+  const handleCreateRedLine = () => {
+    if (!selectedRoadId) {
+      return;
+    }
+
+    setActiveTool("red-line");
+
+    setRedLineDraft(
+      createRedLineDraft(
+        selectedRoadId,
+        "left",
+      ),
+    );
+  };
+
+  const handleUpdateRedLineDraft = (
+    patch: Partial<RedLinePolicyData>,
   ) => {
-    setSelectedRoadId(null);
-    setSelectedIntersectionId(
-      intersectionId,
+    setRedLineDraft((current) => {
+      if (!current) {
+        return null;
+      }
+
+      const next = {
+        ...current,
+        ...patch,
+      };
+
+      const road = roads.find(
+        (item) => item.id === next.roadId,
+      );
+
+      if (!road) {
+        return next;
+      }
+
+      const startOffset = Math.max(
+        0,
+        Math.min(
+          1,
+          Math.min(
+            next.startOffset,
+            next.endOffset,
+          ),
+        ),
+      );
+
+      const endOffset = Math.max(
+        0,
+        Math.min(
+          1,
+          Math.max(
+            next.startOffset,
+            next.endOffset,
+          ),
+        ),
+      );
+
+      return {
+        ...next,
+        startOffset,
+        endOffset,
+        lengthMeters:
+          redLineLengthMeters(
+            road,
+            startOffset,
+            endOffset,
+          ),
+      };
+    });
+  };
+
+  const handleCancelRedLine = () => {
+    setRedLineDraft(null);
+  };
+
+  const handleApplyRedLine = () => {
+    if (!redLineDraft) {
+      return;
+    }
+
+    const road = roads.find(
+      (item) =>
+        item.id === redLineDraft.roadId,
+    );
+
+    if (!road) {
+      return;
+    }
+
+    const startOffset = Math.min(
+      redLineDraft.startOffset,
+      redLineDraft.endOffset,
+    );
+
+    const endOffset = Math.max(
+      redLineDraft.startOffset,
+      redLineDraft.endOffset,
     );
 
     if (
-      activeTool !== "traffic-control"
+      endOffset - startOffset <
+      0.005
     ) {
-      setActiveTool("intersection");
+      return;
     }
+
+    const applied: RedLinePolicyData = {
+      ...redLineDraft,
+      id: `red-line-${Date.now()}`,
+      startOffset,
+      endOffset,
+      lengthMeters:
+        redLineLengthMeters(
+          road,
+          startOffset,
+          endOffset,
+        ),
+    };
+
+    setRedLinePolicies(
+      (current) => [
+        ...current,
+        applied,
+      ],
+    );
+
+    setRedLineDraft(null);
   };
 
   const handleSelectRoad = (
@@ -110,20 +263,41 @@ export default function SimulationShell() {
   ) => {
     if (
       activeTool === "parking" ||
-      activeTool === "youbike" ||
-      activeTool === "intersection"
+      activeTool === "youbike"
     ) {
+      return;
+    }
+
+    const road = roads.find(
+      (item) => item.id === roadId,
+    );
+
+    if (!road) {
       return;
     }
 
     setSelectedIntersectionId(null);
     setSelectedRoadId(roadId);
     setActiveTool("red-line");
+
+    setRedLineDraft(
+      createRedLineDraft(
+        roadId,
+        "left",
+      ),
+    );
   };
 
-  /* ==========================================
-     TOOL
-  ========================================== */
+  const handleSelectIntersection = (
+    intersectionId: string,
+  ) => {
+    setSelectedRoadId(null);
+    setRedLineDraft(null);
+    setSelectedIntersectionId(
+      intersectionId,
+    );
+    setActiveTool("traffic-control");
+  };
 
   const handleChangeTool = (
     tool: PolicyTool,
@@ -132,43 +306,44 @@ export default function SimulationShell() {
 
     if (
       tool === "parking" ||
-      tool === "youbike" ||
-      tool === "intersection"
+      tool === "youbike"
     ) {
       setSelectedRoadId(null);
+      setSelectedIntersectionId(null);
+      setRedLineDraft(null);
+    }
+
+    if (
+      tool === "traffic-control" ||
+      tool === "intersection" ||
+      tool === "signal"
+    ) {
+      setSelectedRoadId(null);
+      setRedLineDraft(null);
     }
 
     if (tool !== "parking") {
       setParkingDraft(null);
     }
-  };
 
-  /* ==========================================
-     ROAD
-  ========================================== */
+    if (
+      tool !== "red-line" &&
+      tool !== "select"
+    ) {
+      setRedLineDraft(null);
+    }
 
-  const handleUpdateRoadPoint = (
-    roadId: string,
-    pointIndex: number,
-    point: Point,
-  ) => {
-    setRoads((current) =>
-      current.map((road) => {
-        if (road.id !== roadId) {
-          return road;
-        }
-
-        return {
-          ...road,
-          points: road.points.map(
-            (currentPoint, index) =>
-              index === pointIndex
-                ? point
-                : currentPoint,
-          ),
-        };
-      }),
-    );
+    if (
+      tool === "red-line" &&
+      selectedRoadId
+    ) {
+      setRedLineDraft(
+        createRedLineDraft(
+          selectedRoadId,
+          "left",
+        ),
+      );
+    }
   };
 
   const handleResetRoad = (
@@ -189,11 +364,25 @@ export default function SimulationShell() {
           : road,
       ),
     );
+
+    if (
+      selectedRoadId === roadId &&
+      activeTool === "red-line"
+    ) {
+      setRedLineDraft(
+        createRedLineDraft(
+          roadId,
+          "left",
+        ),
+      );
+    }
   };
 
   const handleBackToDistrict = () => {
     setSelectedRoadId(null);
     setSelectedIntersectionId(null);
+    setParkingDraft(null);
+    setRedLineDraft(null);
     setActiveTool("select");
   };
 
@@ -232,45 +421,6 @@ export default function SimulationShell() {
         },
       ),
     );
-  };
-
-  /* ==========================================
-     PARKING
-  ========================================== */
-
-  const handlePickParkingLocation = (
-    x: number,
-    y: number,
-  ) => {
-    if (activeTool !== "parking") {
-      return;
-    }
-
-    setParkingDraft({
-      x,
-      y,
-      name: "新增停車場",
-      spaces: 30,
-    });
-  };
-
-  const handleUpdateParkingDraft = (
-    patch: Partial<ParkingDraft>,
-  ) => {
-    setParkingDraft((current) => {
-      if (!current) {
-        return current;
-      }
-
-      return {
-        ...current,
-        ...patch,
-      };
-    });
-  };
-
-  const handleCancelParking = () => {
-    setParkingDraft(null);
   };
 
   const handleAddIntersectionRestriction = (
@@ -339,6 +489,43 @@ export default function SimulationShell() {
     );
   };
 
+  const handlePickParkingLocation = (
+    x: number,
+    y: number,
+  ) => {
+    if (
+      activeTool !== "parking"
+    ) {
+      return;
+    }
+
+    setParkingDraft({
+      x,
+      y,
+      name: "新增停車場",
+      spaces: 30,
+    });
+  };
+
+  const handleUpdateParkingDraft = (
+    patch: Partial<ParkingDraft>,
+  ) => {
+    setParkingDraft((current) => {
+      if (!current) {
+        return null;
+      }
+
+      return {
+        ...current,
+        ...patch,
+      };
+    });
+  };
+
+  const handleCancelParking = () => {
+    setParkingDraft(null);
+  };
+
   const handleConfirmParking = () => {
     if (!parkingDraft) {
       return;
@@ -367,7 +554,8 @@ export default function SimulationShell() {
     ]);
 
     const newPolicy: ParkingPolicyData = {
-      id: `policy-parking-${Date.now()}`,
+      id:
+        `policy-parking-${Date.now()}`,
       parkingId,
       name: newParking.name,
       spaces: newParking.spaces,
@@ -378,11 +566,6 @@ export default function SimulationShell() {
       newPolicy,
     ]);
 
-    /*
-     * 新增完成後清除 Draft，
-     * 但保持 Parking Mode，
-     * 方便繼續新增下一個停車場。
-     */
     setParkingDraft(null);
   };
 
@@ -410,6 +593,7 @@ export default function SimulationShell() {
           activeTool={activeTool}
           roads={roads}
           parkingDraft={parkingDraft}
+          redLineDraft={redLineDraft}
           selectedPolicy={null}
           onUpdateParkingDraft={
             handleUpdateParkingDraft
@@ -419,6 +603,18 @@ export default function SimulationShell() {
           }
           onConfirmParking={
             handleConfirmParking
+          }
+          onCreateRedLine={
+            handleCreateRedLine
+          }
+          onUpdateRedLineDraft={
+            handleUpdateRedLineDraft
+          }
+          onCancelRedLine={
+            handleCancelRedLine
+          }
+          onApplyRedLine={
+            handleApplyRedLine
           }
           onUpdateIntersectionPhase={
             handleUpdateIntersectionPhase
@@ -434,7 +630,9 @@ export default function SimulationShell() {
               "Intersection 設定已套用",
             );
           }}
-          onResetRoad={handleResetRoad}
+          onResetRoad={
+            handleResetRoad
+          }
         />
 
         <SimulationMap
@@ -446,11 +644,23 @@ export default function SimulationShell() {
           }
           activeTool={activeTool}
           roads={roads}
-          intersections={intersections}
+          intersections={
+            intersections
+          }
           parkings={parkings}
           youbikes={YOUBIKES}
-          parkingDraft={parkingDraft}
-          onSelectRoad={handleSelectRoad}
+          parkingDraft={
+            parkingDraft
+          }
+          redLineDraft={
+            redLineDraft
+          }
+          redLinePolicies={
+            redLinePolicies
+          }
+          onSelectRoad={
+            handleSelectRoad
+          }
           onSelectIntersection={
             handleSelectIntersection
           }
@@ -465,14 +675,8 @@ export default function SimulationShell() {
               "YouBike 新增功能尚未接上",
             );
           }}
-          onBeginRoadEdit={(roadId) => {
-            console.log(
-              "開始編輯道路:",
-              roadId,
-            );
-          }}
-          onUpdateRoadPoint={
-            handleUpdateRoadPoint
+          onUpdateRedLineDraft={
+            handleUpdateRedLineDraft
           }
         />
 
@@ -483,6 +687,10 @@ export default function SimulationShell() {
         parkingPolicies={
           parkingPolicies
         }
+        redLinePolicies={
+          redLinePolicies
+        }
+        roads={roads}
       />
     </main>
   );
