@@ -14,17 +14,30 @@ import {
 } from "@/features/simulation/curb.utils";
 
 import {
+  buildScenarioDiff,
+  toSimulationPolicies,
+} from "@/features/simulation/scenario.utils";
+
+import {
   runSimulation,
   type SimulationApiResult,
-  type SimulationPolicyPayload,
+  type SimulationRequestPayload,
   type SimulationStatus,
 } from "@/lib/simulation-api";
 
+import {
+  DEFAULT_MAX_ITERATIONS,
+  runOptimization,
+  type OptimizeApiResult,
+  type OptimizerRunStatus,
+} from "@/lib/optimizer-api";
+
 import type {
   CurbSide,
+  GoalConfig,
+  GoalMetric,
   ParkingData,
   ParkingDraft,
-  ParkingPolicyData,
   PolicyTool,
   RedLinePolicyData,
   RoadSegmentData,
@@ -39,6 +52,25 @@ import SimulationHeader from "./SimulationHeader";
 import SimulationMap from "./SimulationMap";
 
 import styles from "@/styles/simulation.module.css";
+
+const SCENARIO_ID = "scenario-a";
+const SCENARIO_NAME = "Scenario A";
+const DEFAULT_DAY_TYPE = "weekday" as const;
+const DEFAULT_TIME_SLOT = "17:30";
+const DEFAULT_RANDOM_SEED = 42;
+const DEFAULT_ROAD_ID = "shifu-road";
+const DEFAULT_ROAD_NAME = "市府路";
+
+/*
+ * 預設目標。使用者可在右側面板調整，backend 用同一份規則判斷達標，
+ * 所以這裡不再把「降低 10%」之類的字串寫死在 UI 裡。
+ */
+const DEFAULT_GOALS: GoalConfig = {
+  travel_time_percent: -8,
+  travel_speed_percent: 8,
+  congestion_vc_percent: -15,
+  queue_percent: -15,
+};
 
 export default function SimulationShell() {
   const [roads, setRoads] = useState<RoadSegmentData[]>(
@@ -68,11 +100,6 @@ export default function SimulationShell() {
     useState<ParkingDraft | null>(null);
 
   const [
-    parkingPolicies,
-    setParkingPolicies,
-  ] = useState<ParkingPolicyData[]>([]);
-
-  const [
     redLineDraft,
     setRedLineDraft,
   ] = useState<RedLinePolicyData | null>(null);
@@ -97,6 +124,24 @@ export default function SimulationShell() {
   const [
     simulationError,
     setSimulationError,
+  ] = useState<string | null>(null);
+
+  const [goals, setGoals] =
+    useState<GoalConfig>(DEFAULT_GOALS);
+
+  const [
+    optimizerStatus,
+    setOptimizerStatus,
+  ] = useState<OptimizerRunStatus>("idle");
+
+  const [
+    optimizerResult,
+    setOptimizerResult,
+  ] = useState<OptimizeApiResult | null>(null);
+
+  const [
+    optimizerError,
+    setOptimizerError,
   ] = useState<string | null>(null);
 
   const selectedRoad = useMemo(() => {
@@ -577,116 +622,80 @@ export default function SimulationShell() {
       newParking,
     ]);
 
-    const newPolicy: ParkingPolicyData = {
-      id:
-        `policy-parking-${Date.now()}`,
-      parkingId,
-      name: newParking.name,
-      spaces: newParking.spaces,
-    };
-
-    setParkingPolicies((current) => [
-      ...current,
-      newPolicy,
-    ]);
-
     setParkingDraft(null);
   };
 
+  /*
+   * ScenarioDiff：只包含真的和 baseline 不同的項目。
+   * 初始狀態一定是空的，所以政策清單會顯示 0 筆。
+   */
+  const scenarioEntries = useMemo(
+    () =>
+      buildScenarioDiff({
+        intersections,
+        redLinePolicies,
+        parkings,
+        roads,
+      }),
+    [intersections, redLinePolicies, parkings, roads],
+  );
+
+  const anchorRoad = useMemo(() => {
+    const redLineEntry = scenarioEntries.find(
+      (entry) => entry.type === "red-line",
+    );
+
+    const roadId =
+      redLineEntry?.roadId ??
+      selectedRoadId ??
+      DEFAULT_ROAD_ID;
+
+    const road =
+      roads.find((item) => item.id === roadId) ?? null;
+
+    return {
+      roadId,
+      roadName: road?.roadName ?? DEFAULT_ROAD_NAME,
+    };
+  }, [scenarioEntries, selectedRoadId, roads]);
+
+  const buildSimulationRequest =
+    (): SimulationRequestPayload => ({
+      scenario_id: SCENARIO_ID,
+      day_type: DEFAULT_DAY_TYPE,
+      time_slot: DEFAULT_TIME_SLOT,
+      random_seed: DEFAULT_RANDOM_SEED,
+      road_id: anchorRoad.roadId,
+      road_name: anchorRoad.roadName,
+      policies: toSimulationPolicies(scenarioEntries),
+      goals,
+    });
+
+  const handleChangeGoal = (
+    metric: GoalMetric,
+    value: number | null,
+  ) => {
+    setGoals((current) => {
+      const next = { ...current };
+
+      if (value === null || Number.isNaN(value)) {
+        delete next[metric];
+      } else {
+        next[metric] = value;
+      }
+
+      return next;
+    });
+  };
+
   const handleRunSimulation = async () => {
-    const redLinePayloads:
-      SimulationPolicyPayload[] =
-      redLinePolicies.map((policy) => ({
-        type: "red-line",
-        road_id: policy.roadId,
-        side: policy.side,
-        start_offset: policy.startOffset,
-        end_offset: policy.endOffset,
-        length_meters: policy.lengthMeters,
-        start_time: policy.startTime,
-        end_time: policy.endTime,
-      }));
-
-    const parkingPayloads:
-      SimulationPolicyPayload[] =
-      parkingPolicies.map((policy) => ({
-        type: "parking",
-        parking_id: policy.parkingId,
-        name: policy.name,
-        spaces: policy.spaces,
-      }));
-
-    const orderedIntersections =
-      selectedIntersection
-        ? [
-            selectedIntersection,
-            ...intersections.filter(
-              (item) =>
-                item.id !==
-                selectedIntersection.id,
-            ),
-          ]
-        : intersections;
-
-    const signalPayloads:
-      SimulationPolicyPayload[] =
-      orderedIntersections.map(
-        (intersection) => ({
-          type: "signal-timing",
-          intersection_id:
-            intersection.id,
-          phases:
-            intersection.phases.map(
-              (phase) => ({
-                name: phase.name,
-                seconds: phase.seconds,
-                color: phase.color,
-              }),
-            ),
-        }),
-      );
-
-    const restrictionPayloads:
-      SimulationPolicyPayload[] =
-      intersections.flatMap(
-        (intersection) =>
-          intersection.restrictions.map(
-            (restriction) => ({
-              type:
-                "traffic-restriction" as const,
-              intersection_id:
-                intersection.id,
-              restriction_type:
-                restriction.type,
-              target_road_id:
-                restriction.targetRoadId,
-            }),
-          ),
-      );
-
     setSimulationStatus("running");
     setSimulationError(null);
 
     try {
-      const result =
-        await runSimulation({
-          scenario_id: "scenario-a",
-          day_type: "weekday",
-          time_slot: "17:30",
-          random_seed: 42,
-          road_id:
-            selectedRoadId ??
-            "shifu-road",
-          road_name:
-            selectedRoad?.roadName ??
-            "市府路",
-          policies: [
-            ...signalPayloads,
-            ...redLinePayloads,
-            ...parkingPayloads,
-            ...restrictionPayloads,
-          ],
-        });
+      const result = await runSimulation(
+        buildSimulationRequest(),
+      );
 
       setSimulationResult(result);
       setSimulationStatus("success");
@@ -697,6 +706,42 @@ export default function SimulationShell() {
         error instanceof Error
           ? error.message
           : "Unknown simulation error",
+      );
+    }
+  };
+
+  const handleRunOptimization = async () => {
+    setOptimizerStatus("running");
+    setOptimizerError(null);
+
+    try {
+      const result = await runOptimization({
+        initial_scenario: buildSimulationRequest(),
+        goals,
+        max_iterations: DEFAULT_MAX_ITERATIONS,
+      });
+
+      setOptimizerResult(result);
+      setOptimizerStatus("success");
+
+      /*
+       * 最後一輪的 KPI 也同步到上方 Dashboard，
+       * 讓 baseline / scenario / delta / goal 一致。
+       */
+      const lastIteration =
+        result.iterations[result.iterations.length - 1];
+
+      if (lastIteration) {
+        setSimulationResult(lastIteration.result);
+        setSimulationStatus("success");
+      }
+    } catch (error) {
+      setOptimizerResult(null);
+      setOptimizerStatus("error");
+      setOptimizerError(
+        error instanceof Error
+          ? error.message
+          : "Unknown optimization error",
       );
     }
   };
@@ -813,6 +858,9 @@ export default function SimulationShell() {
         />
 
         <GoalPanel
+          scenarioPolicyCount={
+            scenarioEntries.length
+          }
           simulationStatus={
             simulationStatus
           }
@@ -825,17 +873,26 @@ export default function SimulationShell() {
           onRunSimulation={
             handleRunSimulation
           }
+          goals={goals}
+          onChangeGoal={handleChangeGoal}
+          optimizerStatus={
+            optimizerStatus
+          }
+          optimizerResult={
+            optimizerResult
+          }
+          optimizerError={
+            optimizerError
+          }
+          onRunOptimization={
+            handleRunOptimization
+          }
         />
       </section>
 
       <PolicyList
-        parkingPolicies={
-          parkingPolicies
-        }
-        redLinePolicies={
-          redLinePolicies
-        }
-        roads={roads}
+        scenarioName={SCENARIO_NAME}
+        entries={scenarioEntries}
       />
     </main>
   );

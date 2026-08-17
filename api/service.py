@@ -1,178 +1,132 @@
+"""Translation layer between the HTTP payloads and the simulation orchestrator.
+
+This module deliberately holds no traffic formulas. All policy effects live in
+``simulation/policy_effects.py`` and all sequencing lives in
+``simulation/orchestrator.py``.
+"""
+
 from __future__ import annotations
 
-from typing import Iterable
+from typing import Iterable, List, Optional
 
-from simulation.baseline import ScenarioConfig
-from simulation.roads import RoadSegment
-from simulation.signals import SignalPhase, SignalPlan
+from simulation.goals import GoalConfig
+from simulation.orchestrator import SimulationOutcome, run_simulation
+from simulation.scenario import (
+    DEFAULT_BASELINE_GREEN_SECONDS,
+    ParkingPolicy,
+    RedLinePolicy,
+    ScenarioDiff,
+    ScenarioPolicy,
+    SignalTimingPolicy,
+)
 
 from .schemas import (
+    GoalConfigPayload,
     PolicyPayload,
-    SimulationDelta,
-    SimulationKpi,
     SimulationRequest,
     SimulationResponse,
 )
 
 
-BASELINE_GREEN_SECONDS = 40
-DEFAULT_SCENARIO_GREEN_SECONDS = 60
-MIN_SCENARIO_GREEN_SECONDS = 1
-MAX_SCENARIO_GREEN_SECONDS = 68
-ARRIVALS_PER_TICK = 120.0
+UNMODELLED_POLICY_WARNING = (
+    "traffic-restriction policies are recorded but do not affect the MVP "
+    "simulation: route choice is not modelled yet."
+)
+
+
+def _green_seconds_from_phases(policy: PolicyPayload) -> Optional[int]:
+    if not policy.phases:
+        return None
+    for phase in policy.phases:
+        if phase.color == "green":
+            return int(phase.seconds)
+    return None
+
+
+def _signal_policy(policy: PolicyPayload) -> SignalTimingPolicy:
+    scenario_seconds = policy.scenario_seconds or _green_seconds_from_phases(policy)
+    baseline_seconds = policy.baseline_seconds or DEFAULT_BASELINE_GREEN_SECONDS
+
+    return SignalTimingPolicy(
+        intersection_id=policy.intersection_id or "unspecified-intersection",
+        baseline_seconds=int(baseline_seconds),
+        scenario_seconds=int(
+            scenario_seconds if scenario_seconds is not None else baseline_seconds
+        ),
+    )
+
+
+def to_scenario_diff(request: SimulationRequest) -> ScenarioDiff:
+    """Build the internal ScenarioDiff from the HTTP payload.
+
+    Entries that do not differ from baseline are dropped, so an untouched
+    scenario yields an empty diff.
+    """
+    policies: List[ScenarioPolicy] = []
+
+    for payload in request.policies:
+        if payload.type == "signal-timing":
+            policies.append(_signal_policy(payload))
+        elif payload.type == "red-line":
+            policies.append(
+                RedLinePolicy(
+                    road_id=payload.road_id or request.road_id or "unspecified-road",
+                    length_meters=float(payload.length_meters or 0.0),
+                )
+            )
+        elif payload.type == "parking":
+            policies.append(
+                ParkingPolicy(
+                    parking_id=payload.parking_id or "unspecified-parking",
+                    spaces=int(payload.spaces or 0),
+                )
+            )
+        # traffic-restriction is intentionally not converted: it is not one of
+        # the three modelled variables. It is surfaced as a warning instead.
+
+    return ScenarioDiff(
+        scenario_id=request.scenario_id,
+        policies=tuple(policies),
+    ).changed_only()
+
+
+def to_goal_config(payload: Optional[GoalConfigPayload]) -> Optional[GoalConfig]:
+    if payload is None:
+        return None
+    return GoalConfig(
+        travel_time_percent=payload.travel_time_percent,
+        travel_speed_percent=payload.travel_speed_percent,
+        congestion_vc_percent=payload.congestion_vc_percent,
+        queue_percent=payload.queue_percent,
+    )
+
+
+def unmodelled_policy_warnings(policies: Iterable[PolicyPayload]) -> List[str]:
+    if any(policy.type == "traffic-restriction" for policy in policies):
+        return [UNMODELLED_POLICY_WARNING]
+    return []
+
+
+def simulate(request: SimulationRequest) -> SimulationOutcome:
+    diff = to_scenario_diff(request)
+    return run_simulation(
+        diff,
+        day_type=request.day_type,
+        time_slot=request.time_slot,
+        random_seed=request.random_seed,
+        road_id=request.road_id,
+        road_name=request.road_name,
+        goals=to_goal_config(request.goals),
+    )
 
 
 def run_frontend_simulation(request: SimulationRequest) -> SimulationResponse:
-    scenario_config = ScenarioConfig(
-        scenario_id=request.scenario_id,
-        service_date="frontend-simulation",
-        random_seed=request.random_seed,
-        demand_profile={request.time_slot: 1.0},
-    )
-    scenario_config.validate()
+    outcome = simulate(request)
 
-    road = RoadSegment(
-        segment_id=request.road_id or "frontend-demo",
-        length_m=500.0,
-        lanes=2,
-        speed_limit_kph=40.0,
-        capacity_vph=1_800.0,
-        properties={
-            "name:zh": request.road_name or "信義商圈示範路段",
-        },
-    )
+    warnings: List[str] = list(outcome.warnings)
+    warnings.extend(unmodelled_policy_warnings(request.policies))
 
-    scenario_green = _signal_green_seconds(request.policies)
+    payload = outcome.to_dict()
+    payload["warnings"] = warnings
 
-    baseline = _evaluate(
-        road=road,
-        green_seconds=BASELINE_GREEN_SECONDS,
-        arrivals_per_tick=ARRIVALS_PER_TICK,
-        tick_minutes=scenario_config.tick_minutes,
-    )
-
-    scenario = _evaluate(
-        road=road,
-        green_seconds=scenario_green,
-        arrivals_per_tick=ARRIVALS_PER_TICK,
-        tick_minutes=scenario_config.tick_minutes,
-    )
-
-    delta = SimulationDelta(
-        travel_time_percent=_percent_change(
-            baseline.travel_time_minutes,
-            scenario.travel_time_minutes,
-        ),
-        travel_speed_percent=_percent_change(
-            baseline.travel_speed_kph,
-            scenario.travel_speed_kph,
-        ),
-        congestion_vc_percent=_percent_change(
-            baseline.congestion_vc,
-            scenario.congestion_vc,
-        ),
-        queue_percent=_percent_change(
-            baseline.queue_vehicles,
-            scenario.queue_vehicles,
-        ),
-    )
-
-    warnings = _warnings(request.policies)
-
-    if scenario.queue_vehicles < baseline.queue_vehicles:
-        recommended = "scenario"
-    elif scenario.queue_vehicles > baseline.queue_vehicles:
-        recommended = "baseline"
-    else:
-        recommended = "tie"
-
-    return SimulationResponse(
-        scenario_id=request.scenario_id,
-        baseline=baseline,
-        scenario=scenario,
-        delta=delta,
-        recommended=recommended,
-        warnings=warnings,
-    )
-
-
-def _signal_green_seconds(policies: Iterable[PolicyPayload]) -> int:
-    for policy in policies:
-        if policy.type != "signal-timing" or not policy.phases:
-            continue
-
-        for phase in policy.phases:
-            if phase.color == "green":
-                return max(
-                    MIN_SCENARIO_GREEN_SECONDS,
-                    min(MAX_SCENARIO_GREEN_SECONDS, int(phase.seconds)),
-                )
-
-    return DEFAULT_SCENARIO_GREEN_SECONDS
-
-
-def _evaluate(
-    road: RoadSegment,
-    green_seconds: int,
-    arrivals_per_tick: float,
-    tick_minutes: int,
-) -> SimulationKpi:
-    plan = SignalPlan(
-        intersection_id="frontend-demo-intersection",
-        cycle_seconds=120,
-        phases=[
-            SignalPhase(
-                "north_south",
-                50,
-                {"north_straight", "south_straight"},
-            ),
-            SignalPhase(
-                "east_west",
-                green_seconds,
-                {"east_straight", "west_straight"},
-            ),
-        ],
-    )
-
-    queue = plan.update_queue(
-        "east_straight",
-        arrivals=arrivals_per_tick,
-        queued=0,
-        tick_minutes=tick_minutes,
-    )["queue"]
-
-    flow_vph = arrivals_per_tick * 60 / tick_minutes
-
-    return SimulationKpi(
-        travel_time_minutes=road.travel_time_minutes(flow_vph),
-        travel_speed_kph=road.travel_speed_kph(flow_vph),
-        congestion_vc=flow_vph / road.capacity_vph,
-        queue_vehicles=queue,
-    )
-
-
-def _percent_change(baseline: float, scenario: float) -> float:
-    if abs(baseline) < 1e-9:
-        return 0.0
-    return (scenario - baseline) / baseline * 100.0
-
-
-def _warnings(policies: Iterable[PolicyPayload]) -> list[str]:
-    warnings: list[str] = []
-
-    if any(policy.type == "red-line" for policy in policies):
-        warnings.append(
-            "Red-line policy received, but curb-capacity impact is not calibrated yet."
-        )
-
-    if any(policy.type == "parking" for policy in policies):
-        warnings.append(
-            "Parking policy received, but parking-behavior impact is not calibrated yet."
-        )
-
-    if any(policy.type == "traffic-restriction" for policy in policies):
-        warnings.append(
-            "Traffic restriction received, but route-choice impact is not calibrated yet."
-        )
-
-    return warnings
+    return SimulationResponse(**payload)
