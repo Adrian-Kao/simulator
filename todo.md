@@ -8,3 +8,6 @@ VD 車偵器資料：你的 data/traffic/ 和 live/ 裡面有 vd_live.xml。雖�
 3. 用來驗證模型的歷史 Travel Time / 排隊長度
 現狀：data/live/ 裡面有 traffic_travel_time.json，但一樣只是快照。
 缺了什麼：當你的模擬器跑出某個時段（例如 17:30）的 Travel Time 是 3 分鐘時，你需要有一份真實的歷史連續資料（例如連續一週的平均旅行時間 CSV）來比對模擬結果準不準。
+
+執行 python3 run_agent.py --agent policy：跑您原本的交通局 Agent（驗證號誌邏輯）。
+執行 python3 run_agent.py --agent commuter：跑我們新寫的通勤者 Agent（驗證運具選擇邏輯）。
