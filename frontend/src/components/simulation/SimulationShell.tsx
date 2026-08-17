@@ -13,6 +13,13 @@ import {
   redLineLengthMeters,
 } from "@/features/simulation/curb.utils";
 
+import {
+  runSimulation,
+  type SimulationApiResult,
+  type SimulationPolicyPayload,
+  type SimulationStatus,
+} from "@/lib/simulation-api";
+
 import type {
   CurbSide,
   ParkingData,
@@ -74,6 +81,23 @@ export default function SimulationShell() {
     redLinePolicies,
     setRedLinePolicies,
   ] = useState<RedLinePolicyData[]>([]);
+
+  const [
+    simulationStatus,
+    setSimulationStatus,
+  ] = useState<SimulationStatus>("idle");
+
+  const [
+    simulationResult,
+    setSimulationResult,
+  ] = useState<SimulationApiResult | null>(
+    null,
+  );
+
+  const [
+    simulationError,
+    setSimulationError,
+  ] = useState<string | null>(null);
 
   const selectedRoad = useMemo(() => {
     return (
@@ -569,6 +593,114 @@ export default function SimulationShell() {
     setParkingDraft(null);
   };
 
+  const handleRunSimulation = async () => {
+    const redLinePayloads:
+      SimulationPolicyPayload[] =
+      redLinePolicies.map((policy) => ({
+        type: "red-line",
+        road_id: policy.roadId,
+        side: policy.side,
+        start_offset: policy.startOffset,
+        end_offset: policy.endOffset,
+        length_meters: policy.lengthMeters,
+        start_time: policy.startTime,
+        end_time: policy.endTime,
+      }));
+
+    const parkingPayloads:
+      SimulationPolicyPayload[] =
+      parkingPolicies.map((policy) => ({
+        type: "parking",
+        parking_id: policy.parkingId,
+        name: policy.name,
+        spaces: policy.spaces,
+      }));
+
+    const orderedIntersections =
+      selectedIntersection
+        ? [
+            selectedIntersection,
+            ...intersections.filter(
+              (item) =>
+                item.id !==
+                selectedIntersection.id,
+            ),
+          ]
+        : intersections;
+
+    const signalPayloads:
+      SimulationPolicyPayload[] =
+      orderedIntersections.map(
+        (intersection) => ({
+          type: "signal-timing",
+          intersection_id:
+            intersection.id,
+          phases:
+            intersection.phases.map(
+              (phase) => ({
+                name: phase.name,
+                seconds: phase.seconds,
+                color: phase.color,
+              }),
+            ),
+        }),
+      );
+
+    const restrictionPayloads:
+      SimulationPolicyPayload[] =
+      intersections.flatMap(
+        (intersection) =>
+          intersection.restrictions.map(
+            (restriction) => ({
+              type:
+                "traffic-restriction" as const,
+              intersection_id:
+                intersection.id,
+              restriction_type:
+                restriction.type,
+              target_road_id:
+                restriction.targetRoadId,
+            }),
+          ),
+      );
+
+    setSimulationStatus("running");
+    setSimulationError(null);
+
+    try {
+      const result =
+        await runSimulation({
+          scenario_id: "scenario-a",
+          day_type: "weekday",
+          time_slot: "17:30",
+          random_seed: 42,
+          road_id:
+            selectedRoadId ??
+            "shifu-road",
+          road_name:
+            selectedRoad?.roadName ??
+            "市府路",
+          policies: [
+            ...signalPayloads,
+            ...redLinePayloads,
+            ...parkingPayloads,
+            ...restrictionPayloads,
+          ],
+        });
+
+      setSimulationResult(result);
+      setSimulationStatus("success");
+    } catch (error) {
+      setSimulationResult(null);
+      setSimulationStatus("error");
+      setSimulationError(
+        error instanceof Error
+          ? error.message
+          : "Unknown simulation error",
+      );
+    }
+  };
+
   return (
     <main className={styles.page}>
       <SimulationHeader />
@@ -680,7 +812,20 @@ export default function SimulationShell() {
           }
         />
 
-        <GoalPanel />
+        <GoalPanel
+          simulationStatus={
+            simulationStatus
+          }
+          simulationResult={
+            simulationResult
+          }
+          simulationError={
+            simulationError
+          }
+          onRunSimulation={
+            handleRunSimulation
+          }
+        />
       </section>
 
       <PolicyList
