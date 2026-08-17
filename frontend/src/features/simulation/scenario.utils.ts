@@ -3,6 +3,10 @@ import {
   PARKINGS as BASELINE_PARKINGS,
 } from "@/data/xinyi";
 
+import {
+  roadLengthMeters,
+} from "./curb.utils";
+
 import type {
   IntersectionData,
   ParkingData,
@@ -11,6 +15,7 @@ import type {
   ScenarioDiffEntry,
 } from "./simulation.types";
 
+import type { ScenarioDiffPayload } from "@/lib/optimizer-api";
 import type { SimulationPolicyPayload } from "@/lib/simulation-api";
 
 /*
@@ -208,5 +213,209 @@ export function scenarioVariables(
     signalGreenSeconds: signal?.scenarioValue ?? null,
     redLineMeters,
     parkingSpaces,
+  };
+}
+
+/*
+ * AI optimizer 最終結果要同步回實際地圖 state，而不只更新右側 KPI。
+ * 這裡把 backend 的 final ScenarioDiff 轉回目前 UI 的三個狀態來源：
+ * intersections / redLinePolicies / parkings。
+ */
+
+type OptimizedScenarioUiState = {
+  intersections: IntersectionData[];
+  redLinePolicies: RedLinePolicyData[];
+  parkings: ParkingData[];
+};
+
+function applyOptimizedSignal(
+  intersections: IntersectionData[],
+  finalScenario: ScenarioDiffPayload,
+): IntersectionData[] {
+  const signalPolicies = finalScenario.policies.filter(
+    (policy) => policy.type === "signal-timing",
+  );
+
+  if (signalPolicies.length === 0) {
+    return intersections;
+  }
+
+  const secondsByIntersection = new Map(
+    signalPolicies.map((policy) => [
+      policy.intersection_id,
+      policy.scenario_seconds,
+    ]),
+  );
+
+  return intersections.map((intersection) => {
+    const seconds = secondsByIntersection.get(intersection.id);
+
+    if (seconds === undefined) {
+      return intersection;
+    }
+
+    const greenIndex = intersection.phases.findIndex(
+      (phase) => phase.color === "green",
+    );
+
+    if (greenIndex < 0) {
+      return intersection;
+    }
+
+    return {
+      ...intersection,
+      phases: intersection.phases.map((phase, index) =>
+        index === greenIndex
+          ? {
+              ...phase,
+              seconds,
+            }
+          : phase,
+      ),
+    };
+  });
+}
+
+function redLineOffsetsForLength(
+  road: RoadSegmentData,
+  preferredStartOffset: number,
+  targetMeters: number,
+) {
+  const fraction = Math.max(
+    0,
+    Math.min(1, targetMeters / roadLengthMeters(road)),
+  );
+
+  let startOffset = Math.max(
+    0,
+    Math.min(1, preferredStartOffset),
+  );
+  let endOffset = startOffset + fraction;
+
+  if (endOffset > 1) {
+    endOffset = 1;
+    startOffset = Math.max(0, 1 - fraction);
+  }
+
+  return {
+    startOffset,
+    endOffset,
+  };
+}
+
+function applyOptimizedRedLine(
+  current: RedLinePolicyData[],
+  roads: RoadSegmentData[],
+  finalScenario: ScenarioDiffPayload,
+): RedLinePolicyData[] {
+  const policy = finalScenario.policies.find(
+    (item) => item.type === "red-line",
+  );
+
+  if (!policy || policy.length_meters <= 0) {
+    return [];
+  }
+
+  const road = roads.find(
+    (item) => item.id === policy.road_id,
+  );
+
+  if (!road) {
+    return current;
+  }
+
+  const existing =
+    current.find((item) => item.roadId === policy.road_id) ??
+    current[0] ??
+    null;
+
+  const preferredStartOffset = existing?.startOffset ?? 0.25;
+  const { startOffset, endOffset } = redLineOffsetsForLength(
+    road,
+    preferredStartOffset,
+    policy.length_meters,
+  );
+
+  const next: RedLinePolicyData = {
+    id: existing?.id ?? `ai-red-line-${policy.road_id}`,
+    roadId: policy.road_id,
+    side: existing?.side ?? "left",
+    startOffset,
+    endOffset,
+    // PolicyList / next API call must reflect the exact backend policy value.
+    // Offsets are only the best-effort map visualization of that length.
+    lengthMeters: policy.length_meters,
+    startTime: existing?.startTime ?? "00:00",
+    endTime: existing?.endTime ?? "23:59",
+  };
+
+  return [next];
+}
+
+function applyOptimizedParking(
+  current: ParkingData[],
+  finalScenario: ScenarioDiffPayload,
+): ParkingData[] {
+  const baselineIds = baselineParkingIds();
+  const baselineParkings = current.filter((parking) =>
+    baselineIds.has(parking.id),
+  );
+  const scenarioParkings = current.filter(
+    (parking) => !baselineIds.has(parking.id),
+  );
+
+  const policy = finalScenario.policies.find(
+    (item) => item.type === "parking",
+  );
+
+  if (!policy || policy.spaces <= 0) {
+    return baselineParkings;
+  }
+
+  const existing =
+    scenarioParkings.find(
+      (parking) => parking.id === policy.parking_id,
+    ) ??
+    scenarioParkings[0] ??
+    null;
+
+  // AI 只能調整「車位數」，不能憑空決定新停車場座標。
+  // 若沒有使用者先建立的停車場 anchor，就維持原 state。
+  if (!existing) {
+    return current;
+  }
+
+  return [
+    ...baselineParkings,
+    {
+      ...existing,
+      id: policy.parking_id || existing.id,
+      spaces: policy.spaces,
+      status: "new",
+    },
+  ];
+}
+
+export function applyOptimizedScenarioToUi(args: {
+  finalScenario: ScenarioDiffPayload;
+  intersections: IntersectionData[];
+  redLinePolicies: RedLinePolicyData[];
+  parkings: ParkingData[];
+  roads: RoadSegmentData[];
+}): OptimizedScenarioUiState {
+  return {
+    intersections: applyOptimizedSignal(
+      args.intersections,
+      args.finalScenario,
+    ),
+    redLinePolicies: applyOptimizedRedLine(
+      args.redLinePolicies,
+      args.roads,
+      args.finalScenario,
+    ),
+    parkings: applyOptimizedParking(
+      args.parkings,
+      args.finalScenario,
+    ),
   };
 }

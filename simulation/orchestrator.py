@@ -73,15 +73,48 @@ FALLBACK_CAPACITY_VPH = 1_800.0
 FALLBACK_DEMAND_VPH = 1_800.0
 
 
-# Frontend road id -> historical observation segment_id.
-# Directions are collapsed onto one representative segment for the MVP.
+# Frontend road id -> historical observation segment candidates.
+#
+# The first entry is the canonical id emitted by scripts/generate_historical_data.py.
+# Later entries are legacy aliases found in older synthetic population/data files.
+# We prefer an exact road match and never silently substitute an unrelated Xinyi
+# segment when a known road has no matching observation.
+ROAD_ID_TO_SEGMENT_CANDIDATES: Dict[str, Tuple[str, ...]] = {
+    "shifu-road": (
+        "city_hall_road_eastbound",
+        "city_hall_road_westbound",
+    ),
+    "songzhi-road": (
+        "songzhi_road_northbound",
+        "songzhi_rd_eastbound",
+        "songzhi_rd_westbound",
+    ),
+    "songren-road": (
+        "songren_road_northbound",
+        "songren_road_southbound",
+        "songren_rd_northbound",
+        "songren_rd_southbound",
+    ),
+    "songshou-road": (
+        "songshou_road_eastbound",
+        "songshou_rd_eastbound",
+        "songshou_rd_westbound",
+    ),
+    "songgao-road": (
+        "songgao_road_eastbound",
+        "songgao_rd_northbound",
+        "songgao_rd_southbound",
+    ),
+    "zhongxiao-road": (
+        "zhongxiao_east_sec5_eastbound",
+        "zhongxiao_e_rd_sec5_eastbound",
+    ),
+}
+
+# Backwards-compatible canonical manifest for callers/tests that need one id.
 ROAD_ID_TO_SEGMENT_ID: Dict[str, str] = {
-    "shifu-road": "city_hall_road_eastbound",
-    "songzhi-road": "songzhi_road_northbound",
-    "songren-road": "songren_road_northbound",
-    "songshou-road": "songshou_road_eastbound",
-    "songgao-road": "songgao_road_eastbound",
-    "zhongxiao-road": "zhongxiao_east_sec5_eastbound",
+    road_id: candidates[0]
+    for road_id, candidates in ROAD_ID_TO_SEGMENT_CANDIDATES.items()
 }
 
 # Frontend road id -> OpenStreetMap name used in the GeoJSON network.
@@ -93,6 +126,30 @@ ROAD_ID_TO_OSM_NAME: Dict[str, str] = {
     "songgao-road": "松高路",
     "zhongxiao-road": "忠孝東路五段",
 }
+
+
+def _segment_candidates_for_road(
+    road_id: Optional[str],
+    road_name: Optional[str],
+) -> Optional[Tuple[str, ...]]:
+    """Resolve a frontend road to historical ids.
+
+    ``None`` means no road was specified, so a representative segment may be
+    used. ``()`` means a road was explicitly specified but no mapping exists;
+    that case must fall back rather than borrowing data from an unrelated road.
+    """
+    if road_id in ROAD_ID_TO_SEGMENT_CANDIDATES:
+        return ROAD_ID_TO_SEGMENT_CANDIDATES[road_id]
+
+    if road_name:
+        for candidate_road_id, osm_name in ROAD_ID_TO_OSM_NAME.items():
+            if osm_name == road_name:
+                return ROAD_ID_TO_SEGMENT_CANDIDATES[candidate_road_id]
+
+    if road_id or road_name:
+        return ()
+
+    return None
 
 
 @dataclass(frozen=True)
@@ -154,7 +211,7 @@ def _load_historical_metric(
     historical_path: Path,
     day_type: str,
     time_slot: str,
-    segment_id: Optional[str],
+    segment_ids: Optional[Tuple[str, ...]],
 ) -> Tuple[Optional[TypicalDayMetric], List[str]]:
     warnings: List[str] = []
 
@@ -187,18 +244,39 @@ def _load_historical_metric(
         )
         return None, warnings
 
-    if segment_id:
-        exact = next(
-            (metric for metric in slot_metrics if metric.segment_id == segment_id),
-            None,
-        )
-        if exact is not None:
-            return exact, warnings
+    if segment_ids == ():
         warnings.append(
-            f"No historical observations for segment_id={segment_id}; used "
-            f"{slot_metrics[0].segment_id} as a representative Xinyi segment."
+            "No historical segment mapping exists for the requested road; "
+            "using fallback demand instead of an unrelated representative segment."
         )
+        return None, warnings
 
+    if segment_ids:
+        for index, segment_id in enumerate(segment_ids):
+            exact = next(
+                (
+                    metric
+                    for metric in slot_metrics
+                    if metric.segment_id == segment_id
+                ),
+                None,
+            )
+            if exact is not None:
+                if index > 0:
+                    warnings.append(
+                        f"Historical segment matched legacy alias {segment_id}; "
+                        f"canonical id is {segment_ids[0]}."
+                    )
+                return exact, warnings
+
+        warnings.append(
+            "No historical observations matched the requested road's mapped "
+            f"segment ids ({', '.join(segment_ids)}); using fallback demand "
+            "instead of an unrelated representative segment."
+        )
+        return None, warnings
+
+    # No road was requested at all: using a representative segment is explicit.
     return slot_metrics[0], warnings
 
 
@@ -261,9 +339,15 @@ def load_baseline_context(
     sources: Dict[str, str] = {}
     observed: Dict[str, float] = {}
 
-    segment_id = ROAD_ID_TO_SEGMENT_ID.get(road_id or "")
+    segment_candidates = _segment_candidates_for_road(
+        road_id,
+        road_name,
+    )
     metric, metric_warnings = _load_historical_metric(
-        historical_path, day_type, time_slot, segment_id
+        historical_path,
+        day_type,
+        time_slot,
+        segment_candidates,
     )
     warnings.extend(metric_warnings)
 
@@ -290,7 +374,11 @@ def load_baseline_context(
     if metric is None:
         demand_vph = FALLBACK_DEMAND_VPH
         sources["demand"] = "fallback-default"
-        resolved_segment_id = segment_id or FALLBACK_SEGMENT_ID
+        resolved_segment_id = (
+            segment_candidates[0]
+            if segment_candidates
+            else FALLBACK_SEGMENT_ID
+        )
         observation_count = 0
     else:
         demand_vph = metric.traffic_volume_vph

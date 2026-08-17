@@ -564,46 +564,35 @@ export default function SimulationMap({
   };
 
   const handleBackgroundClick = (
-    event: ReactPointerEvent<SVGSVGElement>,
-  ) => {
-    if (
-      event.target !==
-      event.currentTarget
-    ) {
-      return;
-    }
+  event: ReactPointerEvent<SVGSVGElement>,
+) => {
+  const svg = svgRef.current;
 
-    const svg = svgRef.current;
+  if (!svg) {
+    return;
+  }
 
-    if (!svg) {
-      return;
-    }
+  const point =
+    clientPointToSvgPoint(
+      svg,
+      event.clientX,
+      event.clientY,
+    );
 
-    const point =
-      clientPointToSvgPoint(
-        svg,
-        event.clientX,
-        event.clientY,
-      );
+  if (activeTool === "parking") {
+    onPickParkingLocation(
+      point.x,
+      point.y,
+    );
+  }
 
-    if (
-      activeTool === "parking"
-    ) {
-      onPickParkingLocation(
-        point.x,
-        point.y,
-      );
-    }
-
-    if (
-      activeTool === "youbike"
-    ) {
-      onPickYouBikeLocation(
-        point.x,
-        point.y,
-      );
-    }
-  };
+  if (activeTool === "youbike") {
+    onPickYouBikeLocation(
+      point.x,
+      point.y,
+    );
+  }
+};
 
   const handleCurbClick = (
     event: ReactMouseEvent<SVGPathElement>,

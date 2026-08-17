@@ -14,6 +14,7 @@ import {
 } from "@/features/simulation/curb.utils";
 
 import {
+  applyOptimizedScenarioToUi,
   buildScenarioDiff,
   toSimulationPolicies,
 } from "@/features/simulation/scenario.utils";
@@ -723,6 +724,27 @@ export default function SimulationShell() {
 
       setOptimizerResult(result);
       setOptimizerStatus("success");
+
+      /*
+       * AI 不只更新 Dashboard：把 optimizer 的 final ScenarioDiff
+       * 同步回地圖與下方 PolicyList 的真正 state。
+       *
+       * Gemini 仍只允許改三個變量；停車場座標沿用使用者手動建立的 anchor，
+       * AI 不會自行發明新的地圖位置。
+       */
+      const optimizedUi = applyOptimizedScenarioToUi({
+        finalScenario: result.final_scenario,
+        intersections,
+        redLinePolicies,
+        parkings,
+        roads,
+      });
+
+      setIntersections(optimizedUi.intersections);
+      setRedLinePolicies(optimizedUi.redLinePolicies);
+      setParkings(optimizedUi.parkings);
+      setRedLineDraft(null);
+      setParkingDraft(null);
 
       /*
        * 最後一輪的 KPI 也同步到上方 Dashboard，

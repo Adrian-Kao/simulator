@@ -24,6 +24,7 @@ HISTORICAL_CSV = """timestamp,day_type,segment_id,travel_time_minutes,travel_spe
 2025-08-04T17:30:00,weekday,city_hall_road_eastbound,3.40,18.2,1500.0,4200.0,0.93,35.0,110.0,false
 2025-08-05T17:30:00,weekday,city_hall_road_eastbound,3.60,17.4,1600.0,4400.0,0.95,33.0,115.0,false
 2025-08-04T17:30:00,weekday,songgao_road_eastbound,2.10,21.0,900.0,5200.0,0.90,40.0,44.0,false
+2025-08-04T17:30:00,weekday,songzhi_rd_eastbound,2.40,20.0,777.0,5100.0,0.88,31.0,35.0,false
 """
 
 
@@ -106,7 +107,27 @@ class HistoricalBaselineTests(unittest.TestCase):
         )
         self.assertAlmostEqual(context.observed["travel_time_minutes"], 3.5)
 
-    def test_unmapped_road_falls_back_to_a_representative_segment_with_warning(self):
+    def test_known_road_accepts_legacy_segment_alias(self):
+        context = load_baseline_context(
+            day_type="weekday",
+            time_slot="17:30",
+            road_id="songzhi-road",
+            historical_path=self.csv_path,
+            road_network_path=MISSING_ROADS,
+        )
+
+        self.assertAlmostEqual(context.demand_vph, 777.0)
+        self.assertEqual(context.segment_id, "songzhi_rd_eastbound")
+        self.assertEqual(
+            context.sources["demand"],
+            "data/historical/xinyi_historical_observations.csv",
+        )
+        self.assertTrue(
+            any("legacy alias" in warning for warning in context.warnings),
+            context.warnings,
+        )
+
+    def test_unmapped_road_uses_fallback_instead_of_unrelated_segment(self):
         context = load_baseline_context(
             day_type="weekday",
             time_slot="17:30",
@@ -115,10 +136,14 @@ class HistoricalBaselineTests(unittest.TestCase):
             road_network_path=MISSING_ROADS,
         )
 
-        self.assertGreater(context.demand_vph, 0)
+        self.assertEqual(context.demand_vph, FALLBACK_DEMAND_VPH)
         self.assertEqual(
             context.sources["demand"],
-            "data/historical/xinyi_historical_observations.csv",
+            "fallback-default",
+        )
+        self.assertTrue(
+            any("No historical segment mapping" in warning for warning in context.warnings),
+            context.warnings,
         )
 
     def test_missing_time_slot_falls_back_and_warns(self):
