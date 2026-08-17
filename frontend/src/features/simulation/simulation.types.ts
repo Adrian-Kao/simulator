@@ -29,6 +29,7 @@ export type PolicyTool =
   | "youbike"
   | "parking"
   | "traffic-control"
+  | "intersection"
   | "signal";
 
 /* =========================================================
