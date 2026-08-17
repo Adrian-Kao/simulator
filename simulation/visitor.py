@@ -12,7 +12,7 @@ from .baseline import ScenarioConfig
 from .commuter import ModeAlternative, _hhmm_to_minutes
 from .parking import ParkingFacility, choose_parking
 from .roads import RoadSegment
-from .ubike import YouBikeStation
+from .ubike import YouBikeStation, is_youbike_trip_available
 
 # ---------------------------------------------------------------------------
 # Data models
@@ -209,9 +209,16 @@ class VisitorAgent:
         # --- YouBike ---
         if youbike_station is not None:
             bike_time = (road.length_m / 1000) / YOUBIKE_SPEED_KPH * 60  # minutes
-            # YouBike is generally unavailable for groups > 2, as it's hard to find multiple bikes together
-            # or for families with children.
-            bike_avail = 1.0 if youbike_station.bikes >= profile.group_size and profile.group_size <= 2 else 0.0
+            # Larger groups are unlikely to find enough bikes together. Smaller
+            # groups must also pass the shared distance and stock-reserve rules.
+            bike_avail = float(
+                profile.group_size <= 2
+                and is_youbike_trip_available(
+                    youbike_station,
+                    trip_distance_m=road.length_m,
+                    riders=profile.group_size,
+                )
+            )
             alternatives.append(ModeAlternative(
                 mode="youbike",
                 travel_time_minutes=bike_time,

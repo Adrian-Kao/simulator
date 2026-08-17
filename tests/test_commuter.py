@@ -114,6 +114,23 @@ class TestBuildAlternatives(unittest.TestCase):
         modes = [a.mode for a in alts]
         self.assertEqual(modes, ["drive", "transit"])
 
+    def test_youbike_unavailable_when_station_stock_is_nearly_empty(self):
+        station = YouBikeStation("ub1", capacity=30, bikes=5)
+        alts = CommuterAgent.build_alternatives(
+            _profile(), _road(), flow_vph=500, youbike_station=station,
+        )
+        youbike = next(a for a in alts if a.mode == "youbike")
+        self.assertEqual(youbike.availability, 0.0)
+
+    def test_youbike_unavailable_for_long_trip(self):
+        road = RoadSegment("long", 5_001, 2, 40, 1800, {"name": "long road"})
+        station = YouBikeStation("ub1", capacity=30, bikes=15)
+        alts = CommuterAgent.build_alternatives(
+            _profile(), road, flow_vph=500, youbike_station=station,
+        )
+        youbike = next(a for a in alts if a.mode == "youbike")
+        self.assertEqual(youbike.availability, 0.0)
+
     def test_drive_unavailable_when_parking_full(self):
         """When all parking is full, the drive alternative has availability 0."""
         agent = CommuterAgent()

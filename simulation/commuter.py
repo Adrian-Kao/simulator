@@ -13,7 +13,7 @@ from .baseline import ScenarioConfig
 from .historical import TypicalDayMetric
 from .parking import ParkingFacility, choose_parking
 from .roads import RoadSegment
-from .ubike import YouBikeStation
+from .ubike import YouBikeStation, is_youbike_trip_available
 
 
 # ---------------------------------------------------------------------------
@@ -203,7 +203,10 @@ class CommuterAgent:
         # --- YouBike ---
         if youbike_station is not None:
             bike_time = (road.length_m / 1000) / YOUBIKE_SPEED_KPH * 60  # minutes
-            bike_avail = min(youbike_station.bikes, 1)  # 0 or 1
+            bike_avail = float(is_youbike_trip_available(
+                youbike_station,
+                trip_distance_m=road.length_m,
+            ))
             alternatives.append(ModeAlternative(
                 mode="youbike",
                 travel_time_minutes=bike_time,
