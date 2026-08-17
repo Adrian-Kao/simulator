@@ -12,6 +12,22 @@
 | VD 靜態資料 | 偵測器位置與道路關聯 | 可公開下載。 |
 | 路段旅行時間動態資料目錄 | 即時旅行時間 feed 的來源索引 | 可公開下載；目前回傳的臺北 feed 無有效路段紀錄，不能作為校準資料。 |
 
+## 歷史典型日資料收集欄位
+
+每 5 分鐘（最少每小時）每個 `segment_id` 要收集：
+
+| 欄位 | 來源／量測方式 | 用途 |
+| --- | --- | --- |
+| timestamp、day_type、event_flag | 日曆、活動主辦／場館公告 | 建立可比較的典型日。 |
+| traffic_volume_vph | VD 偵測器或交通調查 | 校準路段需求與 V/C。 |
+| travel_time_minutes、travel_speed_kph | 路段旅行時間／速度資料 | 校準與驗證核心 KPI。 |
+| footfall_per_hour | 路口行人計數、商場／場館、行動數據供應商 | 評估商圈人流與政策影響。 |
+| parking_occupancy_rate | 停車場可用位快照或營運資料 | 校準找位與停車選擇。 |
+| youbike_borrows、youbike_returns | 相鄰快照差分或營運歷史資料 | 計算周轉率與運具轉移。 |
+| signal plan／轉向限制 | 號誌時制表、交通管制公告 | 模擬原始情境與政策。 |
+
+資料格式模板：`data/historical/historical_observations_template.csv`。
+
 ## 仍缺少、不能以假資料取代的資料
 
 | 缺口 | 為何必要 | 取得方式 |
