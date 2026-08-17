@@ -292,6 +292,63 @@ export type ScenarioPolicyData = {
 };
 
 /* =========================================================
+   SCENARIO / PYTHON SIMULATION API CONTRACT
+========================================================= */
+
+export type ScenarioData = {
+  id: string;
+
+  name: string;
+
+  policies: ScenarioPolicyData[];
+};
+
+export type SimulationDayType =
+  | "weekday"
+  | "weekend"
+  | "event";
+
+export type SimulationRequest = {
+  scenario: ScenarioData;
+
+  dayType: SimulationDayType;
+
+  /*
+   * V1 先用字串表示，例如 "07:00-09:00"。
+   * FastAPI 接上後再與 Python ScenarioConfig 對齊。
+   */
+  timeSlot: string;
+
+  randomSeed?: number;
+};
+
+export type SimulationKpi = {
+  travelTimeMinutes: number;
+
+  travelSpeedKph: number;
+
+  congestionVc: number;
+
+  queueVehicles?: number;
+};
+
+export type SimulationDelta = {
+  travelTimePercent: number;
+
+  travelSpeedPercent: number;
+
+  congestionVcPercent: number;
+};
+
+export type SimulationResult = {
+  baseline: SimulationKpi;
+
+  scenario: SimulationKpi;
+
+  delta: SimulationDelta;
+};
+
+/* =========================================================
    RED LINE
 ========================================================= */
 
@@ -306,8 +363,14 @@ export type RedLinePolicyData = {
 
   side: CurbSide;
 
+  /*
+   * 0..1，表示沿 curb polyline 的正規化位置。
+   */
   startOffset: number;
 
+  /*
+   * 0..1，表示沿 curb polyline 的正規化位置。
+   */
   endOffset: number;
 
   lengthMeters: number;

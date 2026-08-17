@@ -105,7 +105,7 @@ export const ROADS: RoadSegmentData[] = [
       ],
     },
 
-    intersectionIds: ["i-4", "i-5", "i-6", "i-7", "i-8", "i-9"],
+    intersectionIds: ["i-1", "i-4", "i-7"],
 
     turnRestrictions: [
       {
@@ -188,7 +188,7 @@ export const ROADS: RoadSegmentData[] = [
       ],
     },
 
-    intersectionIds: ["i-4", "i-5", "i-6", "i-7", "i-8", "i-9"],
+    intersectionIds: ["i-2", "i-5", "i-8"],
 
     label: {
       x: 746,
@@ -406,7 +406,7 @@ export const ROADS: RoadSegmentData[] = [
       ],
     },
 
-    intersectionIds: ["i-1", "i-2", "i-3"],
+    intersectionIds: ["i-4", "i-5", "i-6"],
 
     label: {
       x: 650,
@@ -482,7 +482,7 @@ export const ROADS: RoadSegmentData[] = [
       ],
     },
 
-    intersectionIds: ["i-4", "i-5", "i-6"],
+    intersectionIds: ["i-7", "i-8", "i-9"],
 
     label: {
       x: 675,
@@ -501,95 +501,35 @@ export const ROADS: RoadSegmentData[] = [
 export const INTERSECTIONS: IntersectionData[] = [
   {
     id: "i-1",
-    name: "松壽路 / 松高路",
+    name: "??? / ???",
     x: 520,
     y: 120,
-    connectedRoadIds: ["songshou-road", "songgao-road"],
+    connectedRoadIds: ["shifu-road", "songshou-road"],
     phases: [
       { name: "直行", seconds: 42, color: "green" },
       { name: "黃燈", seconds: 4, color: "yellow" },
       { name: "全紅", seconds: 2, color: "red" },
     ],
-    restrictions: [
-      {
-        id: "i-1-right",
-        type: "forbid-right-turn",
-        targetRoadId: "songgao-road",
-        note: "尖峰時段禁止右轉",
-      },
-    ],
+    restrictions: [],
   },
   {
     id: "i-2",
-    name: "市府路 / 松高路",
+    name: "??? / ???",
     x: 720,
     y: 120,
-    connectedRoadIds: ["shifu-road", "songgao-road"],
+    connectedRoadIds: ["songzhi-road", "songshou-road"],
     phases: [
       { name: "直行", seconds: 40, color: "green" },
       { name: "黃燈", seconds: 4, color: "yellow" },
       { name: "全紅", seconds: 2, color: "red" },
     ],
-    restrictions: [
-      {
-        id: "i-2-entry",
-        type: "forbid-entry",
-        targetRoadId: "shifu-road",
-        note: "14:00-20:00 禁止進入",
-      },
-    ],
+    restrictions: [],
   },
   {
     id: "i-3",
-    name: "松仁路 / 松高路",
+    name: "??? / ???",
     x: 930,
     y: 120,
-    connectedRoadIds: ["songren-road", "songgao-road"],
-    phases: [
-      { name: "直行", seconds: 44, color: "green" },
-      { name: "黃燈", seconds: 4, color: "yellow" },
-      { name: "全紅", seconds: 2, color: "red" },
-    ],
-    restrictions: [],
-  },
-  {
-    id: "i-4",
-    name: "市府路 / 松壽路",
-    x: 520,
-    y: 270,
-    connectedRoadIds: ["shifu-road", "songshou-road"],
-    phases: [
-      { name: "直行", seconds: 38, color: "green" },
-      { name: "黃燈", seconds: 4, color: "yellow" },
-      { name: "全紅", seconds: 2, color: "red" },
-    ],
-    restrictions: [
-      {
-        id: "i-4-left",
-        type: "forbid-left-turn",
-        targetRoadId: "songshou-road",
-        note: "平日 07:00-09:00 禁止左轉",
-      },
-    ],
-  },
-  {
-    id: "i-5",
-    name: "松智路 / 松壽路",
-    x: 720,
-    y: 270,
-    connectedRoadIds: ["songzhi-road", "songshou-road"],
-    phases: [
-      { name: "直行", seconds: 46, color: "green" },
-      { name: "黃燈", seconds: 4, color: "yellow" },
-      { name: "全紅", seconds: 2, color: "red" },
-    ],
-    restrictions: [],
-  },
-  {
-    id: "i-6",
-    name: "松仁路 / 松壽路",
-    x: 930,
-    y: 270,
     connectedRoadIds: ["songren-road", "songshou-road"],
     phases: [
       { name: "直行", seconds: 44, color: "green" },
@@ -599,8 +539,47 @@ export const INTERSECTIONS: IntersectionData[] = [
     restrictions: [],
   },
   {
+    id: "i-4",
+    name: "??? / ???",
+    x: 520,
+    y: 270,
+    connectedRoadIds: ["shifu-road", "songgao-road"],
+    phases: [
+      { name: "直行", seconds: 38, color: "green" },
+      { name: "黃燈", seconds: 4, color: "yellow" },
+      { name: "全紅", seconds: 2, color: "red" },
+    ],
+    restrictions: [],
+  },
+  {
+    id: "i-5",
+    name: "??? / ???",
+    x: 720,
+    y: 270,
+    connectedRoadIds: ["songzhi-road", "songgao-road"],
+    phases: [
+      { name: "直行", seconds: 46, color: "green" },
+      { name: "黃燈", seconds: 4, color: "yellow" },
+      { name: "全紅", seconds: 2, color: "red" },
+    ],
+    restrictions: [],
+  },
+  {
+    id: "i-6",
+    name: "??? / ???",
+    x: 930,
+    y: 270,
+    connectedRoadIds: ["songren-road", "songgao-road"],
+    phases: [
+      { name: "直行", seconds: 44, color: "green" },
+      { name: "黃燈", seconds: 4, color: "yellow" },
+      { name: "全紅", seconds: 2, color: "red" },
+    ],
+    restrictions: [],
+  },
+  {
     id: "i-7",
-    name: "市府路 / 忠孝東路五段",
+    name: "??? / ??????",
     x: 520,
     y: 560,
     connectedRoadIds: ["shifu-road", "zhongxiao-road"],
@@ -613,7 +592,7 @@ export const INTERSECTIONS: IntersectionData[] = [
   },
   {
     id: "i-8",
-    name: "松智路 / 忠孝東路五段",
+    name: "??? / ??????",
     x: 720,
     y: 560,
     connectedRoadIds: ["songzhi-road", "zhongxiao-road"],
@@ -626,7 +605,7 @@ export const INTERSECTIONS: IntersectionData[] = [
   },
   {
     id: "i-9",
-    name: "松仁路 / 忠孝東路五段",
+    name: "??? / ??????",
     x: 930,
     y: 560,
     connectedRoadIds: ["songren-road", "zhongxiao-road"],
