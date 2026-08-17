@@ -1,0 +1,69 @@
+XINYI FRONTEND <-> PYTHON FASTAPI MVP
+
+Copy these files into the SAME paths in your repo.
+
+1) Install Python dependencies from repo root
+
+Windows PowerShell:
+  python -m venv .venv
+  .\.venv\Scripts\Activate.ps1
+  pip install -r requirements.txt
+
+macOS/Linux:
+  python -m venv .venv
+  source .venv/bin/activate
+  pip install -r requirements.txt
+
+2) Start FastAPI from repo root
+
+  python -m uvicorn api.main:app --reload --port 8000
+
+Check:
+  http://localhost:8000/health
+
+Expected:
+  {"status":"ok","service":"xinyi-simulation-api"}
+
+3) Frontend env
+
+Create:
+  frontend/.env.local
+
+Content:
+  NEXT_PUBLIC_SIMULATION_API_URL=http://localhost:8000
+
+4) Start Next.js in another terminal
+
+  cd frontend
+  npm run dev
+
+5) Open /simulation
+
+Click:
+  開始模擬
+
+Expected browser Network:
+  POST http://localhost:8000/api/simulations
+
+The right panel should show:
+  Travel Time
+  Travel Speed
+  V/C
+  Queue
+
+IMPORTANT MVP LIMITATION
+
+Only signal green timing currently affects the simulation result directly.
+Red-line / parking / turn-restriction payloads are accepted by the backend,
+but return warnings because their calibrated capacity/behavior models are not
+connected yet.
+
+6) Tests
+
+From repo root:
+  pytest tests/test_api.py
+
+Frontend:
+  cd frontend
+  npm run typecheck
+  npm run build
