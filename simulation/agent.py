@@ -4,6 +4,7 @@ from dataclasses import dataclass
 from typing import Dict
 
 from .baseline import ScenarioConfig
+from .historical import TypicalDayMetric
 from .roads import RoadSegment
 from .signals import SignalPhase, SignalPlan
 
@@ -23,7 +24,7 @@ class SimpleTrafficPolicyAgent:
     def run(self, scenario: ScenarioConfig, road: RoadSegment, arrivals_per_tick: float) -> Dict[str, object]:
         scenario.validate()
         candidates = [
-            ("Baseline: 東西向綠燈 40 秒", self._plan(east_west_green=40)),
+            ("Baseline: 東西向綠燈 40 秒", self._plan(east_west_green=50)),
             ("Policy V1: 東西向綠燈 60 秒", self._plan(east_west_green=60)),
         ]
         results = [self._evaluate(name, plan, road, arrivals_per_tick, scenario.tick_minutes) for name, plan in candidates]
@@ -34,6 +35,25 @@ class SimpleTrafficPolicyAgent:
             "results": results,
             "recommended": selected,
         }
+
+    def run_historical(self, scenario: ScenarioConfig, road: RoadSegment, baseline: TypicalDayMetric) -> Dict[str, object]:
+        """Run a policy comparison from an observed historical typical-day metric."""
+        arrivals_per_tick = baseline.traffic_volume_vph * scenario.tick_minutes / 60
+        outcome = self.run(scenario, road, arrivals_per_tick)
+        outcome["historical_baseline"] = {
+            "day_type": baseline.day_type,
+            "time_slot": baseline.time_slot,
+            "segment_id": baseline.segment_id,
+            "observation_count": baseline.observation_count,
+            "observed_travel_time_minutes": baseline.travel_time_minutes,
+            "observed_travel_speed_kph": baseline.travel_speed_kph,
+            "observed_traffic_volume_vph": baseline.traffic_volume_vph,
+            "observed_footfall_per_hour": baseline.footfall_per_hour,
+            "observed_parking_occupancy_rate": baseline.parking_occupancy_rate,
+            "observed_youbike_borrows": baseline.youbike_borrows,
+            "observed_youbike_returns": baseline.youbike_returns,
+        }
+        return outcome
 
     @staticmethod
     def _plan(east_west_green: int) -> SignalPlan:
