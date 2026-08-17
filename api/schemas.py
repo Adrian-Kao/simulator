@@ -106,11 +106,34 @@ class GoalStatusPayload(BaseModel):
     met: bool
 
 
+class ModeShare(BaseModel):
+    drive: float
+    transit: float
+    youbike: float
+
+
+class BehaviorImpact(BaseModel):
+    population: int
+    baseline_mode_share: ModeShare
+    scenario_mode_share: ModeShare
+    shifted_people: int
+
+
+class DevelopmentImpact(BaseModel):
+    parking_demand_percent: float
+    transit_demand_percent: float
+    youbike_demand_percent: float
+    transport_emissions_percent: float
+    signals: List[str] = Field(default_factory=list)
+
+
 class SimulationResponse(BaseModel):
     scenario_id: str
     baseline: SimulationKpi
     scenario: SimulationKpi
     delta: SimulationDelta
+    behavior: BehaviorImpact
+    development: DevelopmentImpact
     recommended: str
     baseline_variables: PolicyVariablesPayload
     scenario_variables: PolicyVariablesPayload

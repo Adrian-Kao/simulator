@@ -279,6 +279,48 @@ export default function GoalPanel({
               </div>
             )}
 
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiCardHeader}>
+                <span>🧑</span>
+                <strong>Agent 運具判斷</strong>
+              </div>
+              {Object.entries(
+                simulationResult.behavior.scenario_mode_share,
+              ).map(([mode, share]) => (
+                <div className={styles.kpiRow} key={mode}>
+                  <span>{mode}</span>
+                  <b>{formatNumber(share * 100, 1)}%</b>
+                </div>
+              ))}
+              <div className={styles.kpiRow}>
+                <span>改變選擇</span>
+                <b>{simulationResult.behavior.shifted_people} 人</b>
+              </div>
+            </div>
+
+            <div className={styles.kpiCard}>
+              <div className={styles.kpiCardHeader}>
+                <span>🏙</span>
+                <strong>後續發展需求</strong>
+              </div>
+              <div className={styles.kpiRow}>
+                <span>停車</span>
+                <b>{formatPercent(simulationResult.development.parking_demand_percent)}</b>
+              </div>
+              <div className={styles.kpiRow}>
+                <span>大眾運輸</span>
+                <b>{formatPercent(simulationResult.development.transit_demand_percent)}</b>
+              </div>
+              <div className={styles.kpiRow}>
+                <span>YouBike</span>
+                <b>{formatPercent(simulationResult.development.youbike_demand_percent)}</b>
+              </div>
+            </div>
+
+            <div className={styles.tipBox}>
+              {simulationResult.development.signals.join("；")}
+            </div>
+
             {simulationResult.warnings.length > 0 && (
               <ul className={styles.warningList}>
                 {simulationResult.warnings.map((warning) => (

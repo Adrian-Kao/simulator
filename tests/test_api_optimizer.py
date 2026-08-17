@@ -141,7 +141,7 @@ class SimulationResponseTests(unittest.TestCase):
         second = client.post("/api/simulations", json=scenario_request()).json()
         self.assertEqual(first, second)
 
-    def test_traffic_restriction_is_warned_as_unmodelled(self):
+    def test_traffic_restriction_warns_only_about_direct_network_effect(self):
         body = client.post(
             "/api/simulations",
             json=scenario_request(
@@ -157,8 +157,15 @@ class SimulationResponseTests(unittest.TestCase):
         ).json()
 
         self.assertTrue(
-            any("route choice is not modelled" in warning for warning in body["warnings"]),
+            any(
+                "direct road network capacity effect is not modelled" in warning
+                for warning in body["warnings"]
+            ),
             body["warnings"],
+        )
+        self.assertLess(
+            body["behavior"]["scenario_mode_share"]["drive"],
+            body["behavior"]["baseline_mode_share"]["drive"],
         )
 
 

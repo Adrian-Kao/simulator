@@ -87,11 +87,30 @@ export type GoalStatusPayload = {
   met: boolean;
 };
 
+export type ModeSharePayload = {
+  drive: number;
+  transit: number;
+  youbike: number;
+};
+
 export type SimulationApiResult = {
   scenario_id: string;
   baseline: SimulationKpiPayload;
   scenario: SimulationKpiPayload;
   delta: SimulationDeltaPayload;
+  behavior: {
+    population: number;
+    baseline_mode_share: ModeSharePayload;
+    scenario_mode_share: ModeSharePayload;
+    shifted_people: number;
+  };
+  development: {
+    parking_demand_percent: number;
+    transit_demand_percent: number;
+    youbike_demand_percent: number;
+    transport_emissions_percent: number;
+    signals: string[];
+  };
   recommended: "baseline" | "scenario" | "tie" | string;
   baseline_variables: PolicyVariablesPayload;
   scenario_variables: PolicyVariablesPayload;

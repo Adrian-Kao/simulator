@@ -11,6 +11,12 @@ from typing import Iterable, List, Optional
 
 from simulation.goals import GoalConfig
 from simulation.orchestrator import SimulationOutcome, run_simulation
+from simulation.policy_behavior import (
+    ModeContext,
+    development_signals,
+    evaluate_population,
+    policy_mode_context,
+)
 from simulation.scenario import (
     DEFAULT_BASELINE_GREEN_SECONDS,
     ParkingPolicy,
@@ -21,7 +27,10 @@ from simulation.scenario import (
 )
 
 from .schemas import (
+    BehaviorImpact,
+    DevelopmentImpact,
     GoalConfigPayload,
+    ModeShare,
     PolicyPayload,
     SimulationRequest,
     SimulationResponse,
@@ -29,8 +38,8 @@ from .schemas import (
 
 
 UNMODELLED_POLICY_WARNING = (
-    "traffic-restriction policies are recorded but do not affect the MVP "
-    "simulation: route choice is not modelled yet."
+    "traffic-restriction affects agent route/mode choice, but its direct road "
+    "network capacity effect is not modelled yet."
 )
 
 
@@ -129,4 +138,48 @@ def run_frontend_simulation(request: SimulationRequest) -> SimulationResponse:
     payload = outcome.to_dict()
     payload["warnings"] = warnings
 
+    baseline_mode_share = evaluate_population(ModeContext())
+    scenario_mode_share = evaluate_population(
+        policy_mode_context(
+            request.policies,
+            outcome.scenario_variables.signal_green_seconds,
+        )
+    )
+    shifted_share = sum(
+        abs(scenario_mode_share[mode] - baseline_mode_share[mode])
+        for mode in baseline_mode_share
+    ) / 2.0
+    payload["behavior"] = BehaviorImpact(
+        population=100,
+        baseline_mode_share=ModeShare(**baseline_mode_share),
+        scenario_mode_share=ModeShare(**scenario_mode_share),
+        shifted_people=round(shifted_share * 100),
+    ).model_dump()
+    payload["development"] = DevelopmentImpact(
+        parking_demand_percent=_share_change(
+            baseline_mode_share["drive"], scenario_mode_share["drive"]
+        ),
+        transit_demand_percent=_share_change(
+            baseline_mode_share["transit"], scenario_mode_share["transit"]
+        ),
+        youbike_demand_percent=_share_change(
+            baseline_mode_share["youbike"], scenario_mode_share["youbike"]
+        ),
+        transport_emissions_percent=_share_change(
+            baseline_mode_share["drive"], scenario_mode_share["drive"]
+        ),
+        signals=development_signals(baseline_mode_share, scenario_mode_share),
+    ).model_dump()
+
+    if request.policies:
+        payload["warnings"].append(
+            "Agent and development impacts are deterministic planning estimates; "
+            "calibrate coefficients with observed before/after data before deployment."
+        )
+
     return SimulationResponse(**payload)
+
+
+def _share_change(baseline: float, scenario: float) -> float:
+    """Return percentage-point change for a population mode share."""
+    return (scenario - baseline) * 100.0

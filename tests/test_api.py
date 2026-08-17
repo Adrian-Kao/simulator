@@ -1,4 +1,5 @@
 from fastapi.testclient import TestClient
+import pytest
 
 from api.main import app
 
@@ -31,6 +32,9 @@ def test_simulation_response_shape():
     assert "baseline" in body
     assert "scenario" in body
     assert "delta" in body
+    assert "behavior" in body
+    assert "development" in body
+    assert sum(body["behavior"]["scenario_mode_share"].values()) == pytest.approx(1.0)
 
 
 def test_signal_green_changes_queue():
@@ -92,3 +96,41 @@ def test_invalid_payload_is_422():
         },
     )
     assert response.status_code == 422
+
+
+def test_policy_changes_agent_choices_and_downstream_demand():
+    baseline = client.post(
+        "/api/simulations",
+        json={
+            "scenario_id": "baseline-behavior",
+            "day_type": "weekday",
+            "time_slot": "17:30",
+            "policies": [],
+        },
+    ).json()
+    restricted = client.post(
+        "/api/simulations",
+        json={
+            "scenario_id": "restricted-behavior",
+            "day_type": "weekday",
+            "time_slot": "17:30",
+            "policies": [
+                {
+                    "type": "traffic-restriction",
+                    "intersection_id": "i-1",
+                    "restriction_type": "forbid-entry",
+                    "target_road_id": "road-1",
+                }
+            ],
+        },
+    ).json()
+
+    baseline_share = baseline["behavior"]["scenario_mode_share"]
+    restricted_share = restricted["behavior"]["scenario_mode_share"]
+    assert restricted_share["drive"] < baseline_share["drive"]
+    assert restricted["development"]["parking_demand_percent"] < 0
+    assert restricted["development"]["signals"]
+    assert any(
+        "direct road network capacity effect is not modelled" in warning
+        for warning in restricted["warnings"]
+    )
