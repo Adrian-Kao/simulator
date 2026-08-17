@@ -4,6 +4,8 @@
 
 `python3 collect_live_data.py` 會建立帶有 UTC 時間戳的不可覆寫快照，並保存 URL 與 SHA-256。
 
+歷史模式使用 `python3 collect_historical_data.py`。它下載年度交通流量調查（路口、路段、行人）與 2025 年 7 月 YouBike 週間／週末 OD 統計；捷運每日分時 OD 資料目錄也會保存。捷運 OD 原始檔約 300 MB／月，僅在明確指定 `--include-mrt-raw` 時下載。
+
 | 資料 | 用途 | 目前狀態 |
 | --- | --- | --- |
 | YouBike 2.0 即時資訊 | 站點容量、可借／可還車位、初始狀態 | 可公開下載；需連續快照才可推估借還量與周轉率。 |
