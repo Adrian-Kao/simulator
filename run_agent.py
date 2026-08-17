@@ -77,7 +77,6 @@ def _print_outcome(outcome: dict) -> None:
         print(f"  模擬 Travel Speed：{result.travel_speed_kph:.1f} km/h")
         print(f"  模擬 V/C：{result.congestion_vc:.2f}")
     print("\nAgent 建議：" + outcome["recommended"].policy_name)
-    print("注意：政策 Travel Time 的精準預測仍需要以歷史流量／速度校準路段容量與號誌放行率。")
 
 
 if __name__ == "__main__":
