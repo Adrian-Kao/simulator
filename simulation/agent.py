@@ -24,7 +24,7 @@ class SimpleTrafficPolicyAgent:
     def run(self, scenario: ScenarioConfig, road: RoadSegment, arrivals_per_tick: float) -> Dict[str, object]:
         scenario.validate()
         candidates = [
-            ("Baseline: 東西向綠燈 40 秒", self._plan(east_west_green=50)),
+            ("Baseline: 東西向綠燈 40 秒", self._plan(east_west_green=40)),
             ("Policy V1: 東西向綠燈 60 秒", self._plan(east_west_green=60)),
         ]
         results = [self._evaluate(name, plan, road, arrivals_per_tick, scenario.tick_minutes) for name, plan in candidates]
