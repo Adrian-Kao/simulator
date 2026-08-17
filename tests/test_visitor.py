@@ -92,6 +92,15 @@ class TestVisitorBuildAlternatives(unittest.TestCase):
         self.assertEqual(ub_couple.availability, 1.0)
         self.assertEqual(ub_family.availability, 0.0)
 
+    def test_youbike_unavailable_when_group_would_exhaust_reserve(self):
+        profile = _profile(group_size=2)
+        station = YouBikeStation("ub1", capacity=20, bikes=4)
+        alts = VisitorAgent.build_alternatives(
+            profile, _road(), flow_vph=500, youbike_station=station,
+        )
+        youbike = next(a for a in alts if a.mode == "youbike")
+        self.assertEqual(youbike.availability, 0.0)
+
     def test_parking_fee_scales_with_stay_duration(self):
         """The total monetary cost for driving should equal hourly_fee * stay_duration_hours."""
         agent = VisitorAgent()
