@@ -769,153 +769,123 @@ export default function SimulationShell() {
   };
 
   return (
-    <main className={styles.page}>
-      <SimulationHeader />
+  <main className={styles.page}>
+    <SimulationHeader />
 
-      <PolicyToolbar
+    <PolicyToolbar
+      activeTool={activeTool}
+      onChangeTool={handleChangeTool}
+    />
+
+    {/* 第一區：左側設定 + 地圖 */}
+    <section
+      className={`${styles.workspace} ${
+        selectedRoad
+          ? styles.workspaceRoadFocus
+          : ""
+      }`}
+    >
+      <LeftSidebar
+        selectedRoad={selectedRoad}
+        selectedIntersection={selectedIntersection}
         activeTool={activeTool}
-        onChangeTool={handleChangeTool}
+        roads={roads}
+        parkingDraft={parkingDraft}
+        redLineDraft={redLineDraft}
+        selectedPolicy={null}
+        onUpdateParkingDraft={
+          handleUpdateParkingDraft
+        }
+        onCancelParking={
+          handleCancelParking
+        }
+        onConfirmParking={
+          handleConfirmParking
+        }
+        onCreateRedLine={
+          handleCreateRedLine
+        }
+        onUpdateRedLineDraft={
+          handleUpdateRedLineDraft
+        }
+        onCancelRedLine={
+          handleCancelRedLine
+        }
+        onApplyRedLine={
+          handleApplyRedLine
+        }
+        onUpdateIntersectionPhase={
+          handleUpdateIntersectionPhase
+        }
+        onAddIntersectionRestriction={
+          handleAddIntersectionRestriction
+        }
+        onRemoveIntersectionRestriction={
+          handleRemoveIntersectionRestriction
+        }
+        onSaveIntersection={() => {
+          console.log(
+            "Intersection 設定已套用",
+          );
+        }}
+        onResetRoad={
+          handleResetRoad
+        }
       />
 
-      <section
-        className={`${styles.workspace} ${
-          selectedRoad
-            ? styles.workspaceRoadFocus
-            : ""
-        }`}
-      >
-        <LeftSidebar
-          selectedRoad={selectedRoad}
-          selectedIntersection={
-            selectedIntersection
-          }
-          activeTool={activeTool}
-          roads={roads}
-          parkingDraft={parkingDraft}
-          redLineDraft={redLineDraft}
-          selectedPolicy={null}
-          onUpdateParkingDraft={
-            handleUpdateParkingDraft
-          }
-          onCancelParking={
-            handleCancelParking
-          }
-          onConfirmParking={
-            handleConfirmParking
-          }
-          onCreateRedLine={
-            handleCreateRedLine
-          }
-          onUpdateRedLineDraft={
-            handleUpdateRedLineDraft
-          }
-          onCancelRedLine={
-            handleCancelRedLine
-          }
-          onApplyRedLine={
-            handleApplyRedLine
-          }
-          onUpdateIntersectionPhase={
-            handleUpdateIntersectionPhase
-          }
-          onAddIntersectionRestriction={
-            handleAddIntersectionRestriction
-          }
-          onRemoveIntersectionRestriction={
-            handleRemoveIntersectionRestriction
-          }
-          onSaveIntersection={() => {
-            console.log(
-              "Intersection 設定已套用",
-            );
-          }}
-          onResetRoad={
-            handleResetRoad
-          }
-        />
-
-        <SimulationMap
-          selectedRoadId={
-            selectedRoadId
-          }
-          selectedIntersectionId={
-            selectedIntersectionId
-          }
-          activeTool={activeTool}
-          roads={roads}
-          intersections={
-            intersections
-          }
-          parkings={parkings}
-          youbikes={YOUBIKES}
-          parkingDraft={
-            parkingDraft
-          }
-          redLineDraft={
-            redLineDraft
-          }
-          redLinePolicies={
-            redLinePolicies
-          }
-          onSelectRoad={
-            handleSelectRoad
-          }
-          onSelectIntersection={
-            handleSelectIntersection
-          }
-          onBackToDistrict={
-            handleBackToDistrict
-          }
-          onPickParkingLocation={
-            handlePickParkingLocation
-          }
-          onPickYouBikeLocation={() => {
-            console.log(
-              "YouBike 新增功能尚未接上",
-            );
-          }}
-          onUpdateRedLineDraft={
-            handleUpdateRedLineDraft
-          }
-        />
-
-        <GoalPanel
-          scenarioPolicyCount={
-            scenarioEntries.length
-          }
-          simulationStatus={
-            simulationStatus
-          }
-          simulationResult={
-            simulationResult
-          }
-          simulationError={
-            simulationError
-          }
-          onRunSimulation={
-            handleRunSimulation
-          }
-          goals={goals}
-          onChangeGoal={handleChangeGoal}
-          optimizerStatus={
-            optimizerStatus
-          }
-          optimizerResult={
-            optimizerResult
-          }
-          optimizerError={
-            optimizerError
-          }
-          onRunOptimization={
-            handleRunOptimization
-          }
-        />
-      </section>
-
-      <PolicyList
-        scenarioName={SCENARIO_NAME}
-        entries={scenarioEntries}
+      <SimulationMap
+        selectedRoadId={selectedRoadId}
+        selectedIntersectionId={
+          selectedIntersectionId
+        }
+        activeTool={activeTool}
+        roads={roads}
+        intersections={intersections}
+        parkings={parkings}
+        youbikes={YOUBIKES}
+        parkingDraft={parkingDraft}
+        redLineDraft={redLineDraft}
+        redLinePolicies={redLinePolicies}
+        onSelectRoad={handleSelectRoad}
+        onSelectIntersection={
+          handleSelectIntersection
+        }
+        onBackToDistrict={
+          handleBackToDistrict
+        }
+        onPickParkingLocation={
+          handlePickParkingLocation
+        }
+        onPickYouBikeLocation={() => {
+          console.log(
+            "YouBike 新增功能尚未接上",
+          );
+        }}
+        onUpdateRedLineDraft={
+          handleUpdateRedLineDraft
+        }
       />
-    </main>
-  );
+    </section>
+
+    {/* 第二區：Policy List */}
+    <PolicyList
+      scenarioName={SCENARIO_NAME}
+      entries={scenarioEntries}
+    />
+
+    {/* 第三區：Simulation + Optimization */}
+    <GoalPanel
+      simulationStatus={simulationStatus}
+      simulationResult={simulationResult}
+      simulationError={simulationError}
+      onRunSimulation={handleRunSimulation}
+      optimizerStatus={optimizerStatus}
+      optimizerResult={optimizerResult}
+      optimizerError={optimizerError}
+      onRunOptimization={
+        handleRunOptimization
+      }
+    />
+  </main>
+);
 }

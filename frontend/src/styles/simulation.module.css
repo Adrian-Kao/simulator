@@ -8,6 +8,7 @@
     padding: 0;
     width: 100%;
     min-height: 100%;
+    overflow-x: hidden;
 }
 
 :global(body) {
@@ -34,8 +35,9 @@
 
 .page {
     width: 100%;
-    min-width: 1180px;
+    min-width: 0;
     min-height: 100vh;
+    overflow-x: hidden;
     background: #f5f7fa;
     color: #172033;
 }
@@ -91,6 +93,7 @@
 }
 
 .headerActions {
+    min-width: 0;
     display: flex;
     align-items: center;
     gap: 11px;
@@ -167,6 +170,7 @@
     padding-left: 20px;
     display: flex;
     align-items: stretch;
+    overflow-x: auto;
     background: #ffffff;
     border-bottom: 1px solid #dde5ed;
 }
@@ -176,6 +180,7 @@
     min-width: 190px;
     height: 100%;
     padding: 0 26px;
+    flex-shrink: 0;
     background: transparent;
     color: #354158;
     border: 0;
@@ -217,6 +222,7 @@
     align-items: center;
     gap: 10px;
     overflow-x: auto;
+    overflow-y: hidden;
     background: #ffffff;
     border-bottom: 1px solid #dfe6ed;
 }
@@ -272,27 +278,40 @@
 
 /* =========================================================
    WORKSPACE
+
+   第一列：
+   Left Sidebar | Map
+
+   第二列：
+   Python Simulation | Policy Optimization
 ========================================================= */
 
 .workspace {
     width: 100%;
-    height: 760px;
     min-width: 0;
     padding: 10px 14px 0;
     display: grid;
-    grid-template-columns: 315px minmax(0, 1fr) 280px;
-    gap: 10px;
+    grid-template-columns: 315px minmax(0, 1fr);
+    grid-template-rows: 760px auto;
+    align-items: stretch;
+    gap: 18px 10px;
+    height: auto;
+}
+
+.workspaceRoadFocus {
+    grid-template-rows: 790px auto;
 }
 
 
 /*
-  Road Focus 模式。
-  中央地圖保持最大可用空間。
-*/
+ * GoalPanel 如果仍然放在 .workspace 裡，
+ * 強制它跨越左右兩欄，
+ * 因此會出現在地圖下面而不是右側。
+ */
 
-.workspaceRoadFocus {
-    height: 790px;
-    grid-template-columns: 315px minmax(0, 1fr) 280px;
+.workspace>.analysisSection {
+    grid-column: 1 / -1;
+    grid-row: 2;
 }
 
 
@@ -377,7 +396,7 @@
 }
 
 .sidebarSection {
-    padding: 15px 15px;
+    padding: 15px;
     border-bottom: 1px solid #e6ebf1;
 }
 
@@ -898,7 +917,7 @@
 .mapControls {
     position: absolute;
     left: 14px;
-    top: 300px;
+    top: 185px;
     z-index: 40;
     width: 40px;
     display: flex;
@@ -986,7 +1005,8 @@
 
 
 /* =========================================================
-   RIGHT SIDEBAR
+   OLD RIGHT SIDEBAR
+   保留避免舊元件失去樣式
 ========================================================= */
 
 .rightSidebar {
@@ -1163,8 +1183,10 @@
 ========================================================= */
 
 .policyList {
-    margin: 12px 14px 14px;
+    width: auto;
+    margin: 12px 14px 20px;
     padding: 12px;
+    overflow: hidden;
     background: #ffffff;
     border: 1px solid #dce4eb;
     border-radius: 12px;
@@ -1212,8 +1234,9 @@
 }
 
 .policyCards {
+    width: 100%;
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(215px, 1fr));
+    grid-template-columns: repeat( 4, minmax(0, 1fr)) 170px;
     gap: 9px;
 }
 
@@ -1321,6 +1344,11 @@
     background: #f4f9ff;
 }
 
+
+/* =========================================================
+   MINI MAP
+========================================================= */
+
 .miniMap {
     position: absolute;
     right: 14px;
@@ -1360,27 +1388,238 @@
 
 
 /* =========================================================
+   PYTHON SIMULATION + POLICY OPTIMIZATION
+========================================================= */
+
+.analysisSection {
+    width: 100%;
+    min-width: 0;
+    margin: 0;
+    padding: 0;
+}
+
+.analysisGrid {
+    width: 100%;
+    min-width: 0;
+    display: grid;
+    grid-template-columns: repeat( 2, minmax(0, 1fr));
+    gap: 18px;
+    align-items: stretch;
+}
+
+.analysisCard {
+    width: 100%;
+    min-width: 0;
+    min-height: 430px;
+    padding: 26px;
+    overflow: hidden;
+    background: #ffffff;
+    border: 1px solid #dce4ec;
+    border-radius: 16px;
+    box-shadow: 0 8px 26px rgba(31, 45, 64, 0.07);
+}
+
+.analysisCardHeader {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 24px;
+    margin-bottom: 24px;
+}
+
+.analysisCardHeader>div {
+    min-width: 0;
+}
+
+.analysisCardTitle {
+    margin: 0;
+    color: #172033;
+    font-size: 28px;
+    line-height: 1.2;
+    font-weight: 850;
+    letter-spacing: -0.5px;
+}
+
+.analysisCardSubtitle {
+    max-width: 520px;
+    margin: 9px 0 0;
+    color: #748197;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.analysisPrimaryButton {
+    min-width: 175px;
+    min-height: 50px;
+    padding: 0 24px;
+    flex-shrink: 0;
+    background: linear-gradient( 135deg, #0877ed 0%, #0067d8 100%);
+    color: #ffffff;
+    border: 1px solid #0877ed;
+    border-radius: 11px;
+    font-size: 15px;
+    font-weight: 820;
+    cursor: pointer;
+    box-shadow: 0 9px 20px rgba(8, 119, 237, 0.25);
+    transition: transform 150ms ease, box-shadow 150ms ease, background 150ms ease;
+}
+
+.analysisPrimaryButton:hover:not(:disabled) {
+    transform: translateY(-1px);
+    background: linear-gradient( 135deg, #006de0 0%, #005bc2 100%);
+    box-shadow: 0 12px 25px rgba(8, 119, 237, 0.32);
+}
+
+.analysisPrimaryButton:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+    box-shadow: none;
+}
+
+.analysisHint {
+    width: 100%;
+    padding: 18px 20px;
+    background: #f8fbff;
+    color: #4b647e;
+    border: 1px dashed #b8d8f8;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.analysisError {
+    width: 100%;
+    padding: 18px 20px;
+    background: #fff4f4;
+    color: #b73232;
+    border: 1px solid #f1c6c6;
+    border-radius: 12px;
+    font-size: 13px;
+    line-height: 1.7;
+}
+
+.kpiGrid {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat( 2, minmax(0, 1fr));
+    gap: 14px;
+}
+
+.kpiCard {
+    min-width: 0;
+    padding: 19px;
+    background: linear-gradient( 180deg, #fbfdff 0%, #f5f9fe 100%);
+    border: 1px solid #dce8f4;
+    border-radius: 13px;
+}
+
+.kpiLabel {
+    margin-bottom: 10px;
+    color: #607087;
+    font-size: 12px;
+    font-weight: 760;
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.kpiValue {
+    min-width: 0;
+    color: #182538;
+    font-size: 21px;
+    line-height: 1.4;
+    font-weight: 850;
+    word-break: break-word;
+}
+
+.kpiDelta {
+    margin-top: 10px;
+    color: #0877ed;
+    font-size: 15px;
+    font-weight: 820;
+}
+
+
+/* =========================================================
+   OPTIMIZATION
+========================================================= */
+
+.optimizationList {
+    width: 100%;
+    min-width: 0;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+}
+
+.optimizationCard {
+    width: 100%;
+    min-width: 0;
+    padding: 18px;
+    background: #fafbfd;
+    border: 1px solid #e0e6ed;
+    border-radius: 13px;
+}
+
+.optimizationHeader {
+    margin-bottom: 12px;
+    color: #1e293b;
+    font-size: 17px;
+    font-weight: 850;
+}
+
+.optimizationVars {
+    width: 100%;
+    display: grid;
+    grid-template-columns: repeat( 2, minmax(0, 1fr));
+    gap: 8px 14px;
+    margin-bottom: 14px;
+    color: #435168;
+    font-size: 12px;
+    line-height: 1.6;
+}
+
+.optimizationVars strong {
+    color: #253147;
+}
+
+.optimizationReasoning {
+    width: 100%;
+    margin-top: 10px;
+    padding: 14px 16px;
+    background: #f3f7fb;
+    color: #526177;
+    border: 1px solid #e0e8f0;
+    border-radius: 10px;
+    font-size: 12px;
+    line-height: 1.75;
+    word-break: break-word;
+}
+
+
+/* =========================================================
    RESPONSIVE
 ========================================================= */
 
 @media (max-width: 1500px) {
     .workspace {
-        grid-template-columns: 285px minmax(0, 1fr) 250px;
-    }
-    .workspaceRoadFocus {
-        grid-template-columns: 285px minmax(0, 1fr) 250px;
+        grid-template-columns: 285px minmax(0, 1fr);
     }
     .tab {
         min-width: 165px;
+    }
+    .analysisCardTitle {
+        font-size: 25px;
+    }
+    .analysisPrimaryButton {
+        min-width: 150px;
+        padding: 0 18px;
     }
 }
 
 @media (max-width: 1350px) {
     .workspace {
-        grid-template-columns: 260px minmax(0, 1fr) 225px;
-    }
-    .workspaceRoadFocus {
-        grid-template-columns: 260px minmax(0, 1fr) 225px;
+        grid-template-columns: 260px minmax(0, 1fr);
     }
     .brandSubtitle,
     .savedText {
@@ -1391,268 +1630,106 @@
         padding-left: 18px;
         padding-right: 18px;
     }
+    /*
+     * Simulation 和 Optimization
+     * 螢幕變窄後改成上下排列。
+     */
+    .analysisGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
     .policyCards {
-        grid-template-columns: repeat(4, minmax(0, 1fr)) 150px;
+        grid-template-columns: repeat( 2, minmax(0, 1fr));
+    }
+    .addPolicyCard {
+        min-height: 90px;
+    }
+}
+
+@media (max-width: 1000px) {
+    .workspace {
+        grid-template-columns: minmax(0, 1fr);
+        grid-template-rows: auto 650px auto;
+    }
+    .workspaceRoadFocus {
+        grid-template-rows: auto 680px auto;
+    }
+    .leftSidebar {
+        height: auto;
+        max-height: 520px;
+    }
+    .mapContainer {
+        min-height: 650px;
+    }
+    /*
+     * 第三個 child GoalPanel
+     * 在單欄 workspace 中放第三列。
+     */
+    .workspace>.analysisSection {
+        grid-column: 1;
+        grid-row: 3;
+    }
+    .analysisGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .analysisCardHeader {
+        flex-direction: column;
+    }
+    .analysisPrimaryButton {
+        width: 100%;
+    }
+}
+
+@media (max-width: 760px) {
+    .header {
+        height: auto;
+        min-height: 70px;
+        padding: 12px 14px;
+        gap: 10px;
+    }
+    .brandTitle {
+        font-size: 19px;
+    }
+    .headerActions {
+        gap: 6px;
+    }
+    .secondaryButton,
+    .savedText {
+        display: none;
+    }
+    .toolbar {
+        padding: 0 12px;
+    }
+    .workspace {
+        padding-left: 10px;
+        padding-right: 10px;
+    }
+    .kpiGrid {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .optimizationVars {
+        grid-template-columns: minmax(0, 1fr);
+    }
+    .analysisCard {
+        padding: 19px;
+    }
+    .analysisCardTitle {
+        font-size: 23px;
+    }
+    .policyList {
+        margin-left: 10px;
+        margin-right: 10px;
+    }
+    .policyCards {
+        grid-template-columns: minmax(0, 1fr);
     }
 }
 
 @media (min-width: 1700px) {
     .workspace {
-        grid-template-columns: 315px minmax(0, 1fr) 280px;
-        height: 770px;
+        grid-template-columns: 315px minmax(0, 1fr);
+        grid-template-rows: 770px auto;
     }
     .workspaceRoadFocus {
-        height: 805px;
+        grid-template-rows: 805px auto;
     }
-}
-
-/* =========================================================
-   SCENARIO DIFF EMPTY STATE
-========================================================= */
-
-.policyEmptyState {
-    padding: 26px 12px;
-    display: flex;
-    flex-direction: column;
-    align-items: center;
-    gap: 6px;
-    background: #fafbfd;
-    border: 1px dashed #d3dce6;
-    border-radius: 10px;
-    text-align: center;
-}
-
-.policyEmptyState strong {
-    color: #55637a;
-    font-size: 13px;
-    font-weight: 800;
-}
-
-.policyEmptyState p {
-    margin: 0;
-    color: #8a94a6;
-    font-size: 12px;
-}
-
-
-/* =========================================================
-   KPI DASHBOARD (baseline / scenario / delta / target / gap)
-========================================================= */
-
-.kpiList {
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-}
-
-.kpiCard {
-    padding: 10px;
-    background: #ffffff;
-    border: 1px solid #dae3eb;
-    border-radius: 9px;
-    box-shadow: 0 2px 5px rgba(30, 45, 66, 0.025);
-}
-
-.kpiCardHeader {
-    display: flex;
-    align-items: center;
-    gap: 6px;
-    margin-bottom: 7px;
-    padding-bottom: 6px;
-    border-bottom: 1px solid #eef2f6;
-}
-
-.kpiCardHeader span {
-    color: #0877ed;
-    font-size: 14px;
-}
-
-.kpiCardHeader strong {
-    flex: 1;
-    color: #263247;
-    font-size: 12px;
-    font-weight: 800;
-}
-
-.kpiCardHeader em {
-    font-size: 10px;
-    font-style: normal;
-    font-weight: 850;
-}
-
-.kpiRow {
-    display: flex;
-    align-items: baseline;
-    justify-content: space-between;
-    gap: 8px;
-    padding: 2px 0;
-}
-
-.kpiRow span {
-    color: #7e899a;
-    font-size: 11px;
-}
-
-.kpiRow b {
-    color: #253145;
-    font-size: 11px;
-    font-weight: 800;
-    text-align: right;
-}
-
-.goalMet {
-    color: #079269;
-}
-
-.goalUnmet {
-    color: #cf6a2e;
-}
-
-.warningList {
-    margin: 8px 0 0;
-    padding-left: 16px;
-    color: #8a94a6;
-    font-size: 10px;
-    line-height: 1.55;
-}
-
-
-/* =========================================================
-   GOAL CONFIG
-========================================================= */
-
-.goalHint {
-    color: #8a94a6;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-.goalConfigRow {
-    display: grid;
-    grid-template-columns: 26px minmax(0, 1fr) 72px 14px;
-    align-items: center;
-    gap: 6px;
-    padding: 5px 7px;
-    background: #ffffff;
-    border: 1px solid #dae3eb;
-    border-radius: 8px;
-}
-
-.goalConfigLabel {
-    overflow: hidden;
-    color: #263247;
-    white-space: nowrap;
-    text-overflow: ellipsis;
-    font-size: 11px;
-    font-weight: 780;
-}
-
-.goalInput {
-    width: 100%;
-    padding: 5px 7px;
-    color: #253145;
-    background: #fbfcfe;
-    border: 1px solid #d7e0e9;
-    border-radius: 6px;
-    font-size: 11px;
-    font-weight: 700;
-    text-align: right;
-}
-
-.goalConfigUnit {
-    color: #8a94a6;
-    font-size: 10px;
-    font-weight: 700;
-}
-
-
-/* =========================================================
-   AI OPTIMIZATION HISTORY
-========================================================= */
-
-.iterationList {
-    display: flex;
-    flex-direction: column;
-    gap: 9px;
-    max-height: 420px;
-    overflow-y: auto;
-}
-
-.optimizerStatusOk,
-.optimizerStatusWarn {
-    padding: 7px 10px;
-    border-radius: 999px;
-    text-align: center;
-    font-size: 11px;
-    font-weight: 850;
-}
-
-.optimizerStatusOk {
-    background: #e8f8f1;
-    color: #06795a;
-    border: 1px solid #bce8d6;
-}
-
-.optimizerStatusWarn {
-    background: #fff5ec;
-    color: #b85f26;
-    border: 1px solid #ffddc2;
-}
-
-.optimizerMessage {
-    color: #8a94a6;
-    font-size: 10px;
-    line-height: 1.55;
-}
-
-.iterationCard {
-    padding: 10px;
-    background: #fcfdff;
-    border: 1px solid #dae3eb;
-    border-radius: 9px;
-}
-
-.iterationHeader {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    gap: 8px;
-    margin-bottom: 6px;
-}
-
-.iterationHeader strong {
-    color: #263247;
-    font-size: 12px;
-    font-weight: 800;
-}
-
-.iterationHeader em {
-    font-size: 10px;
-    font-style: normal;
-    font-weight: 850;
-}
-
-.iterationDivider {
-    height: 1px;
-    margin: 7px 0;
-    background: #eef2f6;
-}
-
-.reasoningBlock {
-    margin-top: 7px;
-    padding-top: 7px;
-    border-top: 1px solid #eef2f6;
-}
-
-.reasoningBlock span {
-    color: #7e899a;
-    font-size: 10px;
-    font-weight: 800;
-}
-
-.reasoningBlock p {
-    margin: 3px 0 0;
-    color: #455168;
-    font-size: 11px;
-    line-height: 1.6;
 }
